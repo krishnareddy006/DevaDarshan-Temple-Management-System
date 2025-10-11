@@ -123,7 +123,7 @@ export function Home() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
             src="https://wallpapercave.com/wp/wp9198776.jpg"
             alt="Ramalayam Temple"
           />
