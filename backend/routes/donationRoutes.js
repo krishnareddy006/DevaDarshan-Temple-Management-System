@@ -1,11 +1,11 @@
-const express = require("express");
-const { 
+import express from "express";
+import { 
   addDonation, 
   getAllDonations, 
   addDonationUsage, 
   getAllDonationUsage 
-} = require("../controllers/donationController");
-const { verifyAdminToken } = require("../middleware/auth");
+} from "../controllers/donationController.js";
+import { verifyAdminToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -14,4 +14,4 @@ router.get("/donations", verifyAdminToken, getAllDonations);
 router.post("/donation-usage", verifyAdminToken, addDonationUsage);
 router.get("/donation-usage", verifyAdminToken, getAllDonationUsage);
 
-module.exports = router;
+export default router;

@@ -1,6 +1,9 @@
 import { useState, FormEvent, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
+// API configuration from environment variables
+const API_URL = import.meta.env.VITE_API_URL;
+
 const AdminSignup = () => {
   const [formData, setFormData] = useState<{
     fullName: string;
@@ -17,18 +20,20 @@ const AdminSignup = () => {
 
   const navigate = useNavigate();
 
+  // Handle form input changes
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Handle admin signup form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setMessage("");
 
     try {
-      const response = await fetch("http://localhost:3000/api/admin-signup", {
+      const response = await fetch(`${API_URL}/api/admin-signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

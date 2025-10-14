@@ -1,6 +1,9 @@
 import { CreditCard, IndianRupee, Wallet, Building2, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 
+// API configuration from environment variables
+const API_URL = import.meta.env.VITE_API_URL;
+
 type DonationType = {
   id: string;
   name: string;
@@ -8,6 +11,7 @@ type DonationType = {
   minimumAmount: number;
 };
 
+// Available donation types with minimum amounts
 const donationTypes: DonationType[] = [
   {
     id: 'annadanam',
@@ -44,6 +48,7 @@ export function Donations() {
 
   const selectedDonationData = donationTypes.find((type) => type.id === selectedType);
 
+  // Handle form submission for donation steps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -77,7 +82,7 @@ export function Donations() {
       };
 
       try {
-        const response = await fetch('http://localhost:3000/api/donations', {
+        const response = await fetch(`${API_URL}/api/donations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(donationData),
@@ -92,12 +97,13 @@ export function Donations() {
           setError(result.message || 'Failed to process donation');
         }
       } catch (err) {
-        console.error('❌ Donation submission error:', err);
+        console.error('Donation submission error:', err);
         setError('An error occurred while processing your donation');
       }
     }
   };
 
+  // Format card number with spaces every 4 digits
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
@@ -111,11 +117,13 @@ export function Donations() {
     return parts.length ? parts.join(' ') : value;
   };
 
+  // Handle card number input with formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = formatCardNumber(e.target.value);
     setCardNumber(value);
   };
 
+  // Reset form for new donation
   const handleNewDonation = () => {
     setStep(1);
     setSelectedType('');
@@ -132,7 +140,7 @@ export function Donations() {
 
   if (donationComplete && selectedDonationData) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white py-1">
+      <div className="min-h-screen pt-10 pb-8 bg-gradient-to-b from-orange-50 to-white py-1">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="flex justify-center">

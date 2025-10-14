@@ -1,8 +1,8 @@
-const express = require("express");
-const { submitFeedback } = require("../controllers/feedbackController");
+import express from "express";
+import { submitFeedback } from "../controllers/feedbackController.js";
 
 const router = express.Router();
 
 router.post("/feedback", submitFeedback);
 
-module.exports = router;
+export default router;

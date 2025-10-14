@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { Calendar, Clock, Sparkles } from "lucide-react";
+
+// API configuration from environment variables
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface Pooja {
   _id: string;
@@ -7,50 +10,8 @@ interface Pooja {
   date: string;
   time: string;
   thingsNeeded?: string;
-  image?: string; // Image URL from backend or fallback
+  image?: string;
 }
-
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={`shadow-lg rounded-2xl p-6 bg-gradient-to-r from-orange-100 to-orange-200 ${className}`}>{children}</div>
-);
-
-const CardHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-3 font-semibold text-lg text-orange-800">{children}</div>
-);
-
-const CardTitle = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="text-2xl font-bold text-orange-900">{children}</h2>
-);
-
-const CardContent = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-gray-700">{children}</div>
-);
-
-const Button = ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
-  <button
-    onClick={onClick}
-    className={`mt-4 px-5 py-2 bg-orange-600 text-white rounded-lg shadow-md hover:bg-orange-700 transition ${className}`}
-  >
-    {children}
-  </button>
-);
-
-const Modal = ({ show, onClose, children }: { show: boolean; onClose: () => void; children: React.ReactNode }) => {
-  if (!show) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white rounded-xl p-6 w-96 relative shadow-lg">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-gray-600 hover:text-black text-xl font-bold"
-        >
-          ×
-        </button>
-        {children}
-      </div>
-    </div>
-  );
-};
 
 const TemplePoojas = () => {
   const [poojas, setPoojas] = useState<Pooja[]>([]);
@@ -58,106 +19,170 @@ const TemplePoojas = () => {
   const [selectedPooja, setSelectedPooja] = useState<Pooja | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Fallback image URLs
-  const fallbackImages = [
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTWSWCwUv8rgjvh9Q05B34VRCe3yPPloUmtlA&s",
-    "https://www.tirthpurohit.org/wp-content/uploads/2017/10/ganapathy-homam-set-2837-items-29-500x500.png",
-    "https://i.pinimg.com/236x/73/a4/eb/73a4eb10bb9fbbe9efd7532fc0175469.jpg",
-    "https://events.bhaktimarga.org/cdn/shop/files/abhishekam_header.jpg?v=1709114364",
-    "https://images.timesnownews.com/thumb/msid-111751639,thumbsize-186216,width-400,height-225,resizemode-75/111751639.jpg?quality=20",
-  ];
+  // Filter out past poojas based on date and time
+  const filterExpiredPoojas = (poojas: Pooja[]) => {
+    const now = new Date();
+    return poojas.filter((pooja) => {
+      const poojaDateTime = new Date(`${pooja.date}T${pooja.time || '23:59'}:00`);
+      return poojaDateTime >= now;
+    });
+  };
 
-  const defaultImage = "https://via.placeholder.com/400x200?text=No+Image+Available";
-
+  // Fetch all poojas and filter active ones on component mount
   useEffect(() => {
-    fetch("http://localhost:3000/api/poojas")
+    fetch(`${API_URL}/api/poojas`)
       .then((res) => res.json())
       .then((data: Pooja[]) => {
-        // Assign fallback images if backend doesn't provide them
-        const poojasWithImages = data.map((pooja, index) => ({
-          ...pooja,
-          image: pooja.image || fallbackImages[index % fallbackImages.length],
-        }));
-        setPoojas(poojasWithImages);
+        const activePoojas = filterExpiredPoojas(data);
+        setPoojas(activePoojas);
       })
       .catch((err) => console.error("Failed to fetch poojas:", err))
       .finally(() => setLoading(false));
   }, []);
 
+  // Fetch and display detailed information for selected pooja
   const handleViewDetails = (id: string) => {
-    fetch(`http://localhost:3000/api/poojas/${id}`)
+    fetch(`${API_URL}/api/poojas/${id}`)
       .then((res) => res.json())
       .then((data: Pooja) => {
-        // Ensure image is included, use fallback if needed
-        const poojaWithImage = {
-          ...data,
-          image: data.image || fallbackImages[Math.floor(Math.random() * fallbackImages.length)],
-        };
-        setSelectedPooja(poojaWithImage);
+        setSelectedPooja(data);
         setShowModal(true);
       })
       .catch((err) => console.error("Error fetching pooja details:", err));
   };
 
   return (
-    <div className="p-8 bg-orange-50 min-h-screen">
-      <div className="flex items-center mb-6">
-        <BookOpen className="h-8 w-8 text-orange-700 mr-2" />
-        <h1 className="text-3xl font-extrabold text-orange-900">
-          Upcoming Poojas & Abhishekam Timings
-        </h1>
-      </div>
-
-      {loading ? (
-        <p>Loading poojas...</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {poojas.map((pooja) => (
-            <Card key={pooja._id} className="bg-white shadow-xl">
-              <img
-                src={pooja.image || defaultImage}
-                alt={pooja.name}
-                className="w-full h-48 object-cover rounded-lg mb-4"
-                onError={(e) => {
-                  e.currentTarget.src = defaultImage; // Fallback on error
-                }}
-              />
-              <CardHeader>
-                <CardTitle>{pooja.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg">
-                  📅 Date: <span className="font-semibold">{pooja.date}</span>
-                </p>
-                <p className="text-lg">
-                  ⏰ Time: <span className="font-semibold">{pooja.time}</span>
-                </p>
-                <Button onClick={() => handleViewDetails(pooja._id)}>View Details</Button>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl bg-gradient-to-r from-orange-600 to-yellow-500 bg-clip-text text-transparent leading-snug pb-2">
+            Upcoming Poojas & Abhishekam
+          </h1>
+          <p className="mt-4 text-xl text-gray-600 font-light">
+            Explore our sacred temple rituals and ceremonies
+          </p>
         </div>
-      )}
 
-      {/* Modal to show selected pooja details */}
-      <Modal show={showModal} onClose={() => setShowModal(false)}>
-        {selectedPooja && (
-          <>
-            <img
-              src={selectedPooja.image || defaultImage}
-              alt={selectedPooja.name}
-              className="w-full h-40 object-cover rounded-lg mb-4"
-              onError={(e) => {
-                e.currentTarget.src = defaultImage; // Fallback on error
-              }}
-            />
-            <h2 className="text-xl font-bold text-orange-800 mb-2">{selectedPooja.name}</h2>
-            <p className="mb-1"><strong>📅 Date:</strong> {selectedPooja.date}</p>
-            <p className="mb-1"><strong>⏰ Time:</strong> {selectedPooja.time}</p>
-            <p className="mt-2"><strong>🪔 Things Needed:</strong><br />{selectedPooja.thingsNeeded || "Not specified"}</p>
-          </>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin h-12 w-12 border-4 border-orange-500 border-t-transparent rounded-full mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading poojas...</p>
+          </div>
+        ) : poojas.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-xl text-gray-500">No upcoming poojas scheduled at the moment</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {poojas.map((pooja) => {
+              return (
+                <div
+                  key={pooja._id}
+                  className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300"
+                >
+                  {pooja.image && (
+                    <div className="w-full h-48 overflow-hidden">
+                      <img
+                        src={pooja.image}
+                        alt={pooja.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="p-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">{pooja.name}</h2>
+                    
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center text-gray-700">
+                        <Calendar className="h-5 w-5 text-orange-600 mr-3" />
+                        <span className="font-medium">{pooja.date}</span>
+                      </div>
+                      <div className="flex items-center text-gray-700">
+                        <Clock className="h-5 w-5 text-orange-600 mr-3" />
+                        <span className="font-medium">{pooja.time}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleViewDetails(pooja._id)}
+                      className="w-full rounded-lg bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-2 text-base font-semibold text-white shadow-md hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:ring-offset-2"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
-      </Modal>
+
+        {showModal && selectedPooja && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {selectedPooja.image && (
+                <div className="relative">
+                  <div className="absolute bottom-4 left-4">
+                    <h2 className="text-2xl font-bold text-white drop-shadow-lg">{selectedPooja.name}</h2>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-6">
+                {!selectedPooja.image && (
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{selectedPooja.name}</h2>
+                )}
+
+                <div className="space-y-4">
+                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">Schedule</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-gray-700">
+                        <Calendar className="h-4 w-4 text-orange-600 mr-2" />
+                        <div>
+                          <span className="text-xs text-gray-500">Date:</span>
+                          <p className="font-semibold text-sm">{selectedPooja.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center text-gray-700">
+                        <Clock className="h-4 w-4 text-orange-600 mr-2" />
+                        <div>
+                          <span className="text-xs text-gray-500">Time:</span>
+                          <p className="font-semibold text-sm">{selectedPooja.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedPooja.thingsNeeded && (
+                    <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+                      <h3 className="text-base font-semibold text-gray-900 mb-2 flex items-center">
+                        <Sparkles className="h-4 w-4 text-yellow-600 mr-2" />
+                        Things Needed
+                      </h3>
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-line text-sm">
+                        {selectedPooja.thingsNeeded}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setShowModal(false)}
+                      className="w-full rounded-lg border border-gray-300 px-6 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

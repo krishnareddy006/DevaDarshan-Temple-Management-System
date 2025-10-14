@@ -1,12 +1,12 @@
-const express = require("express");
-const { 
+import express from "express";
+import { 
   bookAccommodation, 
   getAllAccommodations, 
   checkAvailability, 
   checkDateRange, 
   confirmAccommodation 
-} = require("../controllers/accommodationController");
-const { verifyAdminToken } = require("../middleware/auth");
+} from "../controllers/accommodationController.js";
+import { verifyAdminToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.get("/accommodations/availability", checkAvailability);
 router.post("/accommodations/check", checkDateRange);
 router.post("/accommodations/confirm/:id", verifyAdminToken, confirmAccommodation);
 
-module.exports = router;
+export default router;

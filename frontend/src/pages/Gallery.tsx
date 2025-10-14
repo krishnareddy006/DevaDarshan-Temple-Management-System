@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import "./Gallery.css"; // We'll add a bit of CSS magic for fade-in and layout
+import "./Gallery.css";
 
-// Sample image URLs (you can replace these with your actual images from /assets or external URLs)
+// Gallery image paths from assets directory
 const imageUrls = [
-  "/assets/img1.png",
+  "./assets/img1.png",
   "/assets/img2.jfif",
   "/assets/img3.jpg",
   "/assets/img4.avif",
@@ -18,6 +18,7 @@ const imageUrls = [
   "/assets/img11.jpg",
 ];
 
+// Randomly shuffle array elements for varied display
 function shuffleArray(array: string[]) {
   return array
     .map((value) => ({ value, sort: Math.random() }))
@@ -28,6 +29,7 @@ function shuffleArray(array: string[]) {
 export function Gallery() {
   const [shuffledImages, setShuffledImages] = useState<string[]>([]);
 
+  // Shuffle images on component mount
   useEffect(() => {
     setShuffledImages(shuffleArray(imageUrls));
   }, []);
@@ -35,8 +37,8 @@ export function Gallery() {
   return (
     <div className="bg-gradient-to-br from-yellow-50 via-orange-100 to-pink-50 min-h-screen py-16 px-6">
       <div className="max-w-7xl mx-auto text-center">
-        <h1 className="text-4xl font-bold text-orange-700 mb-4">Photo Gallery</h1>
-        <p className="text-lg text-gray-600 mb-10">Sacred glimpses of the temple and divine deities</p>
+        <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl bg-gradient-to-r from-orange-600 to-yellow-500 bg-clip-text text-transparent">Photo Gallery</h1>
+        <p className="mt-4 text-xl text-gray-600 font-light mb-10">Sacred glimpses of the temple and divine deities</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {shuffledImages.map((url, index) => (

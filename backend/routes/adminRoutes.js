@@ -1,6 +1,6 @@
-const express = require("express");
-const { adminSignup, adminLogin, verifyAdmin, getAllAdmins } = require("../controllers/adminController");
-const { verifyAdminToken } = require("../middleware/auth");
+import express from "express";
+import { adminSignup, adminLogin, verifyAdmin, getAllAdmins } from "../controllers/adminController.js";
+import { verifyAdminToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -9,4 +9,4 @@ router.post("/admin-login", adminLogin);
 router.get("/verify-admin", verifyAdminToken, verifyAdmin);
 router.get("/admins", verifyAdminToken, getAllAdmins);
 
-module.exports = router;
+export default router;

@@ -1,8 +1,8 @@
-const { ObjectId } = require("mongodb");
-const { getAccommodationsCollection } = require("../config/database");
-const { transporter, EMAIL_USER } = require("../config/email");
+import { ObjectId } from "mongodb";
+import { getAccommodationsCollection } from "../config/database.js";
+import { transporter, EMAIL_USER } from "../config/email.js";
 
-// Book Accommodation
+// Handle accommodation booking requests from users
 const bookAccommodation = async (req, res) => {
   try {
     const {
@@ -16,6 +16,7 @@ const bookAccommodation = async (req, res) => {
       totalPrice,
     } = req.body;
 
+    // Validate required fields before processing
     if (
       !fullName ||
       !email ||
@@ -29,6 +30,7 @@ const bookAccommodation = async (req, res) => {
         .json({ message: "All required fields must be filled" });
     }
 
+    // Insert booking record into database
     const accommodationsCollection = getAccommodationsCollection();
     const result = await accommodationsCollection.insertOne({
       fullName,
@@ -43,7 +45,7 @@ const bookAccommodation = async (req, res) => {
       bookedAt: new Date(),
     });
 
-    // Send acknowledgment email
+    // Send booking acknowledgment email to user
     const mailOptions = {
       from: `"Temple Administration" <${EMAIL_USER}>`,
       to: email,
@@ -66,41 +68,45 @@ const bookAccommodation = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(` Acknowledgment email sent to ${email}`);
+    console.log(`Acknowledgment email sent to ${email}`);
 
     res.status(201).json({
       message: "Accommodation booking request submitted successfully",
       id: result.insertedId,
     });
   } catch (err) {
-    console.error(" Error booking accommodation:", err);
+    console.error("Error booking accommodation:", err);
     res.status(500).json({ message: "Failed to submit booking request" });
   }
 };
 
-// Get all Accommodations
+// Retrieve all accommodation bookings from database
 const getAllAccommodations = async (req, res) => {
   try {
     const accommodationsCollection = getAccommodationsCollection();
     const bookings = await accommodationsCollection.find().toArray();
     res.status(200).json(bookings);
   } catch (err) {
-    console.error(" Error fetching bookings:", err);
+    console.error("Error fetching bookings:", err);
     res.status(500).json({ message: "Failed to load accommodation bookings" });
   }
 };
 
-// Check room availability
+// Updated checkAvailability function to handle room types
 const checkAvailability = async (req, res) => {
   try {
+    const { roomType } = req.query; // Get room type from query params
     const accommodationsCollection = getAccommodationsCollection();
-    const bookings = await accommodationsCollection.find().toArray();
+    
+    // Filter by room type if provided
+    const query = roomType ? { roomType } : {};
+    const bookings = await accommodationsCollection.find(query).toArray();
     const availability = {};
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Assume we want to check availability for the next 365 days
+    // Generate availability status for each day in the next year
     for (let i = 0; i < 365; i++) {
       const date = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
       const dateStr = date.toISOString().split("T")[0];
@@ -108,6 +114,7 @@ const checkAvailability = async (req, res) => {
       let isBooked = false;
       let isFilling = false;
 
+      // Check if date conflicts with existing bookings for the specific room type
       bookings.forEach((booking) => {
         const checkIn = new Date(booking.checkInDate);
         const checkOut = new Date(booking.checkOutDate);
@@ -134,16 +141,17 @@ const checkAvailability = async (req, res) => {
 
     res.status(200).json(availability);
   } catch (err) {
-    console.error(" Error fetching availability:", err);
+    console.error("Error fetching availability:", err);
     res.status(500).json({ message: "Failed to fetch availability" });
   }
 };
 
-// Check specific date range availability
+// Check availability for specific date range
 const checkDateRange = async (req, res) => {
   try {
-    const { checkInDate, checkOutDate } = req.body;
+    const { checkInDate, checkOutDate, roomType } = req.body; 
 
+    // Validate required date parameters
     if (!checkInDate || !checkOutDate) {
       return res
         .status(400)
@@ -156,8 +164,11 @@ const checkDateRange = async (req, res) => {
     checkOut.setHours(0, 0, 0, 0);
 
     const accommodationsCollection = getAccommodationsCollection();
-    const bookings = await accommodationsCollection.find().toArray();
+    // Filter bookings by room type if provided
+    const query = roomType ? { roomType } : {};
+    const bookings = await accommodationsCollection.find(query).toArray();
 
+    // Check if requested dates overlap with existing bookings for the specific room type
     const isAvailable = !bookings.some((booking) => {
       const bookedCheckIn = new Date(booking.checkInDate);
       const bookedCheckOut = new Date(booking.checkOutDate);
@@ -173,16 +184,17 @@ const checkDateRange = async (req, res) => {
 
     res.status(200).json({ isAvailable });
   } catch (err) {
-    console.error(" Error checking availability:", err);
+    console.error("Error checking availability:", err);
     res.status(500).json({ message: "Failed to check availability" });
   }
 };
 
-// Confirm accommodation booking
+// Confirm pending accommodation booking and send notification
 const confirmAccommodation = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate booking ID format
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid booking ID" });
     }
@@ -192,14 +204,17 @@ const confirmAccommodation = async (req, res) => {
       _id: new ObjectId(id),
     });
 
+    // Check if booking exists
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
+    // Prevent duplicate confirmations
     if (booking.status === "confirmed") {
       return res.status(400).json({ message: "Booking already confirmed" });
     }
 
+    // Update booking status to confirmed
     const result = await accommodationsCollection.updateOne(
       { _id: new ObjectId(id) },
       { $set: { status: "confirmed", confirmedAt: new Date() } }
@@ -209,6 +224,7 @@ const confirmAccommodation = async (req, res) => {
       return res.status(500).json({ message: "Failed to confirm booking" });
     }
 
+    // Send confirmation email to guest
     const mailOptions = {
       from: `"Temple Administration" <${EMAIL_USER}>`,
       to: booking.email,
@@ -230,18 +246,19 @@ const confirmAccommodation = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(` Confirmation email sent to ${booking.email}`);
+    console.log(`Confirmation email sent to ${booking.email}`);
 
     res
       .status(200)
       .json({ message: "Accommodation booking confirmed and email sent" });
   } catch (err) {
-    console.error(" Error confirming accommodation:", err);
+    console.error("Error confirming accommodation:", err);
     res.status(500).json({ message: "Failed to confirm accommodation booking" });
   }
 };
 
-module.exports = {
+// Export all accommodation controller functions
+export {
   bookAccommodation,
   getAllAccommodations,
   checkAvailability,

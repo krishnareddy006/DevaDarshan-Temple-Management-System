@@ -1,9 +1,10 @@
+import { Calendar, Gift, Users, Clock, Mail, Phone, MapPin, IndianRupee, Instagram, Facebook, Youtube, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
 
-import { Calendar, Gift, Users, Clock, Music, Mail, Phone, MapPin, IndianRupee, MessageSquare, Instagram, Facebook, Twitter } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+// Environment variable for API URL
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export function Home() {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [donationData, setDonationData] = useState({
     totalDonated: 0,
     totalUsed: 0,
@@ -15,7 +16,65 @@ export function Home() {
   const [events, setEvents] = useState([]);
   const [feedback, setFeedback] = useState({ name: "", email: "", message: "" });
   const [feedbackStatus, setFeedbackStatus] = useState("");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  // Carousel images from assets
+  const carouselImages = [
+    {
+      src: "/assets/temple-1.jpg",
+      alt: "Shiva Temple Main View",
+      title: "Divine Serenity Awaits"
+    },
+    {
+      src: "/assets/temple-2.jpg",
+      alt: "Temple Interior",
+      title: "Sacred Spiritual Space"
+    },
+    {
+      src: "/assets/temple-3.jpg",
+      alt: "Temple Festival",
+      title: "Vibrant Celebrations"
+    },
+    {
+      src: "/assets/temple-4.jpg",
+      alt: "Prayer Time",
+      title: "Moments of Devotion"
+    }
+  ];
+
+  // Auto-advance carousel with visible progress
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          setCurrentSlide((curr) => (curr + 1) % carouselImages.length);
+          return 0;
+        }
+        return prev + 1;
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [currentSlide, carouselImages.length]);
+
+  // Navigate to previous slide
+  const prevSlide = () => {
+    setCurrentSlide((curr) => (curr - 1 + carouselImages.length) % carouselImages.length);
+    setProgress(0);
+  };
+
+  // Navigate to next slide
+  const nextSlide = () => {
+    setCurrentSlide((curr) => (curr + 1) % carouselImages.length);
+    setProgress(0);
+  };
+
+  // Reset progress when slide changes manually
+  const handleSlideChange = (index: number) => {
+    setCurrentSlide(index);
+    setProgress(0);
+  };
 
   // Fetch donation data
   useEffect(() => {
@@ -23,10 +82,10 @@ export function Home() {
       setLoading(true);
       try {
         const [donationsRes, usageRes] = await Promise.all([
-          fetch("http://localhost:3000/api/donations", {
+          fetch(`${API_URL}/api/donations`, {
             headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
           }),
-          fetch("http://localhost:3000/api/donation-usage", {
+          fetch(`${API_URL}/api/donation-usage`, {
             headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
           }),
         ]);
@@ -53,7 +112,7 @@ export function Home() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/events");
+        const response = await fetch(`${API_URL}/api/events`);
         const eventsData = await response.json();
         setEvents(eventsData);
       } catch (err) {
@@ -63,29 +122,6 @@ export function Home() {
 
     fetchEvents();
   }, []);
-
-  // Audio setup
-  useEffect(() => {
-    audioRef.current = new Audio("/assets/gayatri-mantra-raga-1.mp3");
-    audioRef.current.loop = true;
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  const toggleAudio = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
 
   const toggleEventCalendar = () => {
     setShowEventCalendar(!showEventCalendar);
@@ -98,7 +134,7 @@ export function Home() {
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:3000/api/feedback", {
+      const response = await fetch(`${API_URL}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(feedback),
@@ -119,55 +155,85 @@ export function Home() {
 
   return (
     <main className="bg-gradient-to-b from-orange-50 to-white">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            className="w-full h-full object-cover object-top"
-            src="https://wallpapercave.com/wp/wp9198776.jpg"
-            alt="Ramalayam Temple"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+      {/* Hero Carousel Section */}
+      <div className="relative h-screen overflow-hidden">
+        {/* Carousel Images */}
+        <div className="relative h-full">
+          {carouselImages.map((image, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img
+                className="w-full h-full object-cover"
+                src={image.src}
+                alt={image.alt}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+            </div>
+          ))}
         </div>
-        <div className="relative mx-auto max-w-7xl py-32 px-6 sm:py-48 lg:px-8 text-center animate-fade-in">
-          <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl lg:text-7xl">
-            Ramalayam Temple
-          </h1>
-          <p className="mt-6 max-w-3xl mx-auto text-xl text-gray-200 leading-relaxed">
-            Embrace divine serenity and spiritual bliss. Book your darshan, contribute to sacred causes, and join our vibrant community events.
-          </p>
-          <div className="mt-10 flex justify-center gap-4 flex-wrap">
-            <a
-              href="/bookdarshan"
-              className="rounded-xl bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-orange-700 transition-all duration-300 transform hover:scale-105"
-            >
-              Book Darshan
-            </a>
-            <a
-              href="/donations"
-              className="rounded-xl bg-white px-6 py-3 text-base font-semibold text-orange-600 shadow-lg hover:bg-orange-50 transition-all duration-300 transform hover:scale-105"
-            >
-              Make a Donation
-            </a>
-            <a
-              href="/admin"
-              className="rounded-xl bg-gray-900 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-gray-800 transition-all duration-300 transform hover:scale-105"
-            >
-              Admin Panel
-            </a>
-            <a
-              href="/gallery"
-              className="rounded-xl bg-orange-100 px-6 py-3 text-base font-semibold text-orange-700 shadow-lg hover:bg-orange-200 transition-all duration-300 transform hover:scale-105"
-            >
-              Photo Gallery
-            </a>
+
+        {/* Navigation Arrows
+        <button
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-3 rounded-full transition-all duration-300 z-10"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="h-6 w-6 text-white" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-3 rounded-full transition-all duration-300 z-10"
+          aria-label="Next slide"
+        >
+          <ChevronRight className="h-6 w-6 text-white" />
+        </button> */}
+
+        {/* Carousel Indicators - Thin lines */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 z-10">
+          {carouselImages.map((_, index) => (
             <button
-              onClick={toggleAudio}
-              className="rounded-xl bg-orange-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-orange-600 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+              key={index}
+              onClick={(e) => {
+                e.preventDefault();
+                handleSlideChange(index);
+              }}
+              className="relative group focus:outline-none"
+              aria-label={`Go to slide ${index + 1}`}
             >
-              <Music className="h-5 w-5" />
-              {isPlaying ? "Pause Bhajan" : "Play Bhajan"}
+              <div
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  index === currentSlide
+                    ? 'w-16 bg-orange-500'
+                    : 'w-8 bg-white/40 hover:bg-white/60'
+                }`}
+              >
+                {index === currentSlide && (
+                  <div
+                    className="absolute left-0 top-0 h-full bg-orange-600 rounded-full transition-all duration-100 ease-linear"
+                    style={{ width: `${progress}%` }}
+                  />
+                )}
+              </div>
             </button>
+          ))}
+        </div>
+
+        {/* Overlay Content */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center text-white px-4 max-w-4xl mx-auto">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in">
+              Shiva Temple
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto animate-fade-in">
+              {carouselImages[currentSlide].title}
+            </p>
+            <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto animate-fade-in">
+              Embrace divine serenity and spiritual bliss. Join our vibrant community in sacred worship and devotion.
+            </p>
           </div>
         </div>
       </div>
@@ -210,18 +276,29 @@ export function Home() {
                 link: "/community",
               },
             ].map((feature, index) => (
-              <a
+              <div
                 key={index}
-                href={feature.link}
                 onClick={feature.onClick}
-                className="relative bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer"
+                className="relative bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
               >
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3">
-                  {feature.icon}
-                </div>
-                <h3 className="mt-12 text-lg font-semibold text-gray-900">{feature.title}</h3>
-                <p className="mt-2 text-gray-600">{feature.description}</p>
-              </a>
+                {feature.link ? (
+                  <a href={feature.link} className="block">
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3">
+                      {feature.icon}
+                    </div>
+                    <h3 className="mt-12 text-lg font-semibold text-gray-900">{feature.title}</h3>
+                    <p className="mt-2 text-gray-600">{feature.description}</p>
+                  </a>
+                ) : (
+                  <>
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3">
+                      {feature.icon}
+                    </div>
+                    <h3 className="mt-12 text-lg font-semibold text-gray-900">{feature.title}</h3>
+                    <p className="mt-2 text-gray-600">{feature.description}</p>
+                  </>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -230,25 +307,45 @@ export function Home() {
       {/* Event Calendar Modal */}
       {showEventCalendar && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-3xl w-full mx-4">
+          <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-orange-600">Temple Event Calendar</h2>
               <button
                 onClick={toggleEventCalendar}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center"
               >
                 ×
               </button>
             </div>
             <div className="grid grid-cols-1 gap-6">
               {events.length === 0 ? (
-                <p className="text-center text-gray-600">No events available.</p>
+                <div className="text-center py-12">
+                  <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-xl text-gray-500 mb-2">No events scheduled</p>
+                  <p className="text-gray-400">Events added by the admin will appear here</p>
+                </div>
               ) : (
                 events.map((event: any, index) => (
-                  <div key={index} className="border-l-4 border-orange-600 pl-4">
-                    <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
-                    <p className="text-sm text-gray-500">{event.date}</p>
-                    <p className="mt-2 text-gray-600">{event.description}</p>
+                  <div key={index} className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border-l-4 border-orange-600 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="h-4 w-4 text-orange-600" />
+                          <p className="text-sm font-medium text-orange-700">{event.date}</p>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">{event.description}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-orange-200">
+                      <p className="text-xs text-gray-500">
+                        Added on: {new Date(event.createdAt).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
@@ -256,7 +353,7 @@ export function Home() {
             <div className="mt-8 text-center">
               <button
                 onClick={toggleEventCalendar}
-                className="rounded-xl bg-orange-600 px-6 py-3 text-base font-semibold text-white hover:bg-orange-700 transition-all duration-300"
+                className="rounded-xl bg-orange-600 px-9 py-2 text-base font-semibold text-white hover:bg-orange-700 transition-all duration-300"
               >
                 Close
               </button>
@@ -308,7 +405,7 @@ export function Home() {
                 donationData.donationUsage.slice(0, 3).map((usage: any, index: number) => (
                   <div
                     key={index}
-                    className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+                    className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300"
                   >
                     <p className="text-lg font-semibold text-orange-600">{usage.purpose}</p>
                     <p className="mt-2 text-gray-600">₹{usage.amountSpent.toFixed(2)}</p>
@@ -340,19 +437,19 @@ export function Home() {
             </p>
           </div>
           <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
               <h3 className="text-lg font-semibold text-orange-600">Weekly Satsangs</h3>
               <p className="mt-2 text-gray-600">
                 Participate in our weekly gatherings for bhajans, discourses, and meditation every Sunday at 6 PM.
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
               <h3 className="text-lg font-semibold text-orange-600">Volunteer Opportunities</h3>
               <p className="mt-2 text-gray-600">
                 Contribute your time and skills to temple activities, from event planning to community outreach.
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
               <h3 className="text-lg font-semibold text-orange-600">Youth Programs</h3>
               <p className="mt-2 text-gray-600">
                 Engage young minds with our cultural and spiritual classes held every Saturday for children and teens.
@@ -371,35 +468,35 @@ export function Home() {
       </div>
 
       {/* Latest Updates Section */}
-      <div className="bg-gray-50 py-24">
+      <div className="bg-white py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-4xl font-extrabold text-gray-900">Latest Temple Updates</h2>
             <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
-              Stay connected with the latest happenings at Ramalayam Temple.
+              Stay connected with the latest happenings at Shiva Temple.
             </p>
           </div>
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                title: "Special Pooja",
-                description: "Join us for a special pooja on 15th April. Register now!",
-                date: "15th April 2025",
-              },
-              {
                 title: "Temple Renovation",
-                description: "Support our ongoing temple renovation project with your donations.",
+                description: "Support our ongoing temple renovation project with your generous donations. Help us preserve our sacred heritage.",
                 date: "Ongoing",
               },
               {
-                title: "Ram Navami Festival",
-                description: "Celebrate Ram Navami with grand festivities on 20th April.",
-                date: "20th April 2025",
+                title: "Diwali Celebration",
+                description: "Celebrate the Festival of Lights with us. Special abhishekams, poojas, and prasadam distribution for all devotees.",
+                date: "October 2025",
+              },
+              {
+                title: "Karthika Deepotsavam",
+                description: "Join us for the grand Karthika Deepotsavam celebration. Special poojas and rituals will be conducted throughout the month.",
+                date: "November 2025",
               },
             ].map((update, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+                className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300 border border-orange-100"
               >
                 <h3 className="text-lg font-semibold text-orange-600">{update.title}</h3>
                 <p className="mt-2 text-gray-600">{update.description}</p>
@@ -410,10 +507,10 @@ export function Home() {
         </div>
       </div>
 
-      {/* Enhanced Contact Us Section */}
-      <div className="bg-gradient-to-r from-orange-50 to-yellow-50 py-24">
+      {/* Connect With Us Section */}
+      <div id="connect-section" className="bg-gradient-to-r from-orange-50 to-yellow-50 py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center">
+          <div className="text-center mb-16">
             <h2 className="text-4xl font-extrabold text-gray-900 bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500">
               Connect With Us
             </h2>
@@ -421,62 +518,76 @@ export function Home() {
               We're here to guide you on your spiritual journey. Reach out to us for inquiries, blessings, or to share your thoughts.
             </p>
           </div>
-          <div className="mt-16 grid grid-cols-1 gap-12 lg:grid-cols-2">
+
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
             {/* Contact Information */}
-            <div className="space-y-8">
-              <div className="flex items-start gap-4">
-                <MapPin className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                <div>
-                  <p className="text-lg font-medium text-gray-900">Our Location</p>
-                  <p className="mt-2 text-gray-600">Ramalayam Temple, Tirupati, Andhra Pradesh, India</p>
+            <div className="rounded-2xl p-8">
+              <h3 className="text-2xl font-semibold text-gray-900 mb-8">Get In Touch</h3>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <MapPin className="h-6 w-6 text-orange-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="font-medium text-gray-900">Temple Address</p>
+                    <p className="mt-1 text-gray-600">Shiva Temple, Bangalore, Karnataka, India - 560001</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <Phone className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                <div>
-                  <p className="text-lg font-medium text-gray-900">Phone Support</p>
-                  <p className="mt-2 text-gray-600">+91 98765 43210 (Available 9 AM - 6 PM)</p>
+                <div className="flex items-start gap-4">
+                  <Phone className="h-6 w-6 text-orange-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="font-medium text-gray-900">Phone Support</p>
+                    <p className="mt-1 text-gray-600">+91 98765 43210</p>
+                    <p className="text-sm text-gray-500">Available 6 AM - 9 PM</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <Mail className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                <div>
-                  <p className="text-lg font-medium text-gray-900">Email Us</p>
-                  <p className="mt-2 text-gray-600">contact@ramalayamtemple.org</p>
+                <div className="flex items-start gap-4">
+                  <Mail className="h-6 w-6 text-orange-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="font-medium text-gray-900">Email Us</p>
+                    <p className="mt-1 text-gray-600">contact@shivatemple.org</p>
+                    <p className="mt-1 text-gray-600">info@shivatemple.org</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <MessageSquare className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                <div>
-                  <p className="text-lg font-medium text-gray-900">Live Chat</p>
-                  <p className="mt-2 text-gray-600">Chat with our team during temple hours</p>
-                  <a
-                    href="#"
-                    className="mt-2 inline-flex items-center text-orange-600 hover:text-orange-700 font-semibold"
-                  >
-                    Start Chat
-                  </a>
+
+                {/* Social Media */}
+                <div className="pt-6 border-t border-gray-200">
+                  <p className="font-medium text-gray-900 mb-4">Follow Us</p>
+                  <div className="flex gap-4">
+                    <a
+                      href="https://instagram.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
+                    >
+                      <Instagram className="h-5 w-5" />
+                    </a>
+                    <a
+                      href="https://youtube.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
+                    >
+                      <Youtube className="h-5 w-5" />
+                    </a>
+                    <a
+                      href="https://facebook.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
+                    >
+                      <Facebook className="h-5 w-5" />
+                    </a>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-6 justify-center">
-                <a href="https://instagram.com" target="_blank" className="text-orange-600 hover:text-orange-700">
-                  <Instagram className="h-8 w-8" />
-                </a>
-                <a href="https://facebook.com" target="_blank" className="text-orange-600 hover:text-orange-700">
-                  <Facebook className="h-8 w-8" />
-                </a>
-                <a href="https://twitter.com" target="_blank" className="text-orange-600 hover:text-orange-700">
-                  <Twitter className="h-8 w-8" />
-                </a>
               </div>
             </div>
+
             {/* Feedback Form */}
             <div className="bg-white rounded-2xl p-8 shadow-xl">
               <h3 className="text-2xl font-semibold text-gray-900 mb-6">Share Your Feedback</h3>
               <form onSubmit={handleFeedbackSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Name
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Name *
                   </label>
                   <input
                     type="text"
@@ -484,13 +595,14 @@ export function Home() {
                     id="name"
                     value={feedback.name}
                     onChange={handleFeedbackChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
+                    placeholder="Enter your full name"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
                   </label>
                   <input
                     type="email"
@@ -498,36 +610,42 @@ export function Home() {
                     id="email"
                     value={feedback.email}
                     onChange={handleFeedbackChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
+                    placeholder="Enter your email address"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                    Message
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Message *
                   </label>
                   <textarea
                     name="message"
                     id="message"
-                    rows={4}
+                    rows={5}
                     value={feedback.message}
                     onChange={handleFeedbackChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
+                    placeholder="Share your thoughts, feedback, or inquiries..."
                     required
                   />
                 </div>
                 <div>
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-orange-700 transition-all duration-300"
+                    className="w-full rounded-xl bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-3 text-base font-semibold text-white shadow-lg"
                   >
-                    Submit Feedback
+                    Send Message
                   </button>
                 </div>
                 {feedbackStatus && (
-                  <p className={`text-center ${feedbackStatus.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                  <div className={`text-center p-3 rounded-lg ${
+                    feedbackStatus.includes("success")
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}>
                     {feedbackStatus}
-                  </p>
+                  </div>
                 )}
               </form>
             </div>
@@ -536,19 +654,172 @@ export function Home() {
       </div>
 
       {/* Footer Section */}
-      <footer className="bg-gradient-to-r from-orange-700 to-yellow-600 py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8 text-center text-white">
-          <p className="text-lg">© 2025 Ramalayam Temple. All Rights Reserved.</p>
-          <div className="mt-6 flex justify-center gap-8">
-            <a href="https://instagram.com" target="_blank" className="hover:text-orange-200 transition-colors duration-300">
-              Instagram
-            </a>
-            <a href="https://youtube.com" target="_blank" className="hover:text-orange-200 transition-colors duration-300">
-              YouTube
-            </a>
-            <a href="https://facebook.com" target="_blank" className="hover:text-orange-200 transition-colors duration-300">
-              Facebook
-            </a>
+      <footer className="bg-gradient-to-r from-orange-700 to-yellow-600 py-16">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 text-white">
+            {/* First Services Column */}
+            <div className="text-center sm:text-left">
+              <h3 className="text-xl font-semibold mb-4 text-orange-100">Services</h3>
+              <ul className="space-y-2">
+                <li>
+                  <a href="/templepoojas" className="hover:text-orange-200 transition-colors duration-300">
+                    Poojas
+                  </a>
+                </li>
+                <li>
+                  <a href="/bookdarshan" className="hover:text-orange-200 transition-colors duration-300">
+                    Book Darshan
+                  </a>
+                </li>
+                <li>
+                  <a href="/donations" className="hover:text-orange-200 transition-colors duration-300">
+                    Donations
+                  </a>
+                </li>
+                <li>
+                  <a href="/accommodation" className="hover:text-orange-200 transition-colors duration-300">
+                    Accommodation
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Second Services Column */}
+            <div className="text-center sm:text-left">
+              <h3 className="text-xl font-semibold mb-4 text-orange-100">Services</h3>
+              <ul className="space-y-2">
+                <li>
+                  <button
+                    onClick={toggleEventCalendar}
+                    className="hover:text-orange-200 transition-colors duration-300"
+                  >
+                    Events & Calendar
+                  </button>
+                </li>
+                <li>
+                  <a href="/community" className="hover:text-orange-200 transition-colors duration-300">
+                    Join Community
+                  </a>
+                </li>
+                <li>
+                  <a href="/gallery" className="hover:text-orange-200 transition-colors duration-300">
+                    Photo Gallery
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Account Column */}
+            <div className="text-center sm:text-left">
+              <h3 className="text-xl font-semibold mb-4 text-orange-100">Account</h3>
+              <ul className="space-y-2">
+                {typeof window !== 'undefined' && localStorage.getItem("userToken") ? (
+                  <>
+                    <li>
+                      <a href="/profile" className="hover:text-orange-200 transition-colors duration-300">
+                        My Profile
+                      </a>
+                    </li>
+                    <li>
+                      <a href="/my-bookings" className="hover:text-orange-200 transition-colors duration-300">
+                        My Bookings
+                      </a>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem("userToken");
+                          window.location.reload();
+                        }}
+                        className="hover:text-orange-200 transition-colors duration-300"
+                      >
+                        Logout
+                      </button>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <a href="/login" className="hover:text-orange-200 transition-colors duration-300">
+                        Login
+                      </a>
+                    </li>
+                    <li>
+                      <a href="/signup" className="hover:text-orange-200 transition-colors duration-300">
+                        Sign Up
+                      </a>
+                    </li>
+                  </>
+                )}
+                <li>
+                  <a href="/admin-login" className="hover:text-orange-200 transition-colors duration-300">
+                    Admin Panel
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Connect Column */}
+            <div className="text-center sm:text-left">
+              <h3 className="text-xl font-semibold mb-4 text-orange-100">Connect</h3>
+              <ul className="space-y-2 mb-4">
+                <li>
+                  <a href="#connect-section" className="hover:text-orange-200 transition-colors duration-300">
+                    Contact Us
+                  </a>
+                </li>
+                <li>
+                  <a href="/about-temple" className="hover:text-orange-200 transition-colors duration-300">
+                    About Temple
+                  </a>
+                </li>
+              </ul>
+
+              {/* Social Media Links */}
+              <div className="flex gap-4 justify-center sm:justify-start">
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-orange-200 transition-colors duration-300"
+                >
+                  <Instagram className="h-6 w-6" />
+                </a>
+                <a
+                  href="https://youtube.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-orange-200 transition-colors duration-300"
+                >
+                  <Youtube className="h-6 w-6" />
+                </a>
+                <a
+                  href="https://facebook.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-orange-200 transition-colors duration-300"
+                >
+                  <Facebook className="h-6 w-6" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Copyright Section */}
+          <div className="mt-12 pt-8 border-t border-orange-600 text-center text-white">
+            <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
+              <p className="text-base lg:text-lg">
+                © 2025 Shiva Temple. All Rights Reserved.
+              </p>
+              <div className="flex gap-6 text-sm">
+                <a href="/privacy" className="hover:text-orange-200 transition-colors duration-300">
+                  Privacy Policy
+                </a>
+                <a href="/terms" className="hover:text-orange-200 transition-colors duration-300">
+                  Terms of Service
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

@@ -9,12 +9,10 @@ import TemplePoojas from './pages/templepoojas';
 import BookDarshan from './pages/bookdarshan'; 
 import AdminPage from "./admin/admin";
 import { Gallery } from "./pages/Gallery";
-
 import AdminLogin from "./components/AdminLogin";
 import AdminSignup from "./components/AdminSignup";
-// import { AuthProvider } from "./context/AuthContext";
-// import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Community } from './pages/Community'; // ✅ Import Community page
+import { Community } from './pages/Community'; 
+import AboutTemple from './pages/AboutTemple';
 
 function App() {
   return (
@@ -33,7 +31,8 @@ function App() {
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/admin-signup" element={<AdminSignup />} />
           <Route path="/gallery" element={<Gallery />} />
-          <Route path="/community" element={<Community />} /> {/* ✅ Community route added */}
+          <Route path="/community" element={<Community />} />
+          <Route path="/about" element={<AboutTemple />} />
         </Routes>
       </div>
     </Router>
