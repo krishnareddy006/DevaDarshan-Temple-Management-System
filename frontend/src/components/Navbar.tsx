@@ -22,7 +22,7 @@ export function Navbar() {
         <div className="flex items-center lg:flex-1">
            <NavLink to="/" className="flex items-center gap-2 ">
            <img
-                src="project-logo.png" 
+                src="/project-logo.png" 
                 alt="Temple Logo"
                 className="h-16 w-auto"
            />

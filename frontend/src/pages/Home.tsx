@@ -22,23 +22,28 @@ export function Home() {
   // Carousel images from assets
   const carouselImages = [
     {
-      src: "/assets/temple-1.jpg",
+      src: "/assets/DevaDarshanHome1.webp",
       alt: "Shiva Temple Main View",
       title: "Divine Serenity Awaits"
     },
     {
-      src: "/assets/temple-2.jpg",
+      src: "/assets/DevaDarshanHome2.webp",
+      alt: "Shiva Statue",
+      title: "Divine Serenity Awaits"
+    },
+    {
+      src: "/assets/DevaDarshanHome3.webp",
       alt: "Temple Interior",
       title: "Sacred Spiritual Space"
     },
     {
-      src: "/assets/temple-3.jpg",
-      alt: "Temple Festival",
-      title: "Vibrant Celebrations"
+      src: "/assets/DevaDarshanHome4.webp",
+      alt: "Temple Night View",
+      title: "Moments of Devotion"
     },
     {
-      src: "/assets/temple-4.jpg",
-      alt: "Prayer Time",
+      src: "/assets/DevaDarshanHome5.webp",
+      alt: "Temple Main Gopuram",
       title: "Moments of Devotion"
     }
   ];

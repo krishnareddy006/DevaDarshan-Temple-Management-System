@@ -4,9 +4,9 @@ import { verifyAdminToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/", submitMembership);
-router.get("/", verifyAdminToken, getAllMemberships);
-router.post("/approve/:id", verifyAdminToken, approveMembership);
+router.post("/membership", submitMembership);
+router.get("/membership", verifyAdminToken, getAllMemberships);
+router.post("/membership/approve/:id", verifyAdminToken, approveMembership);
 
 export default router;
 

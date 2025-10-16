@@ -6,16 +6,17 @@ import "./Gallery.css";
 // Gallery image paths from assets directory
 const imageUrls = [
   "./assets/img1.png",
-  "/assets/img2.jfif",
-  "/assets/img3.jpg",
-  "/assets/img4.avif",
-  "/assets/img5.jpg",
-  "/assets/img6.webp",
-  "/assets/img7.jpg",
-  "/assets/img8.webp",
-  "/assets/img9.jpg",
-  "/assets/img10.jfif",
-  "/assets/img11.jpg",
+  "/assets/img2.png",
+  "/assets/img3.png",
+  "/assets/img4.png",
+  "/assets/img5.png",
+  "/assets/img6.png",
+  "/assets/img7.png",
+  "/assets/img8.png",
+  "/assets/img9.png",
+  "/assets/img10.png",
+  "/assets/img11.png",
+  "/assets/img12.png",
 ];
 
 // Randomly shuffle array elements for varied display
