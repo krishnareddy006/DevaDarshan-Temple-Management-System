@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Calendar, Clock, Sparkles } from "lucide-react";
 
 // API configuration from environment variables
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface Pooja {
   _id: string;

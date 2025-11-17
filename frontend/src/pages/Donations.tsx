@@ -2,7 +2,7 @@ import { CreditCard, IndianRupee, Wallet, Building2, CheckCircle } from 'lucide-
 import { useState } from 'react';
 
 // API configuration from environment variables
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type DonationType = {
   id: string;

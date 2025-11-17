@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_fallback";
 
 // Middleware function to verify JWT token for admin authentication
 const verifyAdminToken = (req, res, next) => {

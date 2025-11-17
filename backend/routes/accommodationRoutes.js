@@ -10,10 +10,10 @@ import { verifyAdminToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/accommodations", bookAccommodation);
-router.get("/accommodations", getAllAccommodations);
-router.get("/accommodations/availability", checkAvailability);
-router.post("/accommodations/check", checkDateRange);
-router.post("/accommodations/confirm/:id", verifyAdminToken, confirmAccommodation);
+router.post("/accommodations/book", bookAccommodation); 
+router.get("/accommodations", verifyAdminToken, getAllAccommodations); 
+router.get("/accommodations/availability", checkAvailability); 
+router.post("/accommodations/check-range", checkDateRange); 
+router.put("/accommodations/confirm/:id", verifyAdminToken, confirmAccommodation); 
 
 export default router;

@@ -1,21 +1,21 @@
-import { useEffect, useState, ChangeEvent, FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { Wallet } from "lucide-react";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Wallet, TrendingUp, Users, Calendar, DollarSign, Home as HomeIcon, Bed, HandHeart } from 'lucide-react';
 
-// Environment variable for API URL
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// ==================== ERROR BOUNDARY ====================
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+// Error Boundary
+const ErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const errorHandler = (error: any) => {
-      console.error("ErrorBoundary caught:", error);
+      console.error('ErrorBoundary caught:', error);
       setHasError(true);
     };
-    window.addEventListener("error", errorHandler);
-    return () => window.removeEventListener("error", errorHandler);
+
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
   }, []);
 
   if (hasError) {
@@ -29,9 +29,10 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// ==================== INTERFACES ====================
+// Interfaces
 interface Pooja {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   date: string;
   time: string;
@@ -40,7 +41,8 @@ interface Pooja {
 }
 
 interface Accommodation {
-  _id: string;
+  _id?: string;
+  id?: string;
   fullName: string;
   email: string;
   phone: string;
@@ -54,43 +56,9 @@ interface Accommodation {
   totalPrice: number;
 }
 
-interface Donation {
-  _id: string;
-  donationType: string;
-  amount: number;
-  paymentMethod: string;
-  createdAt: string;
-  cardNumber?: string;
-  expiryDate?: string;
-  upiId?: string;
-}
-
-interface Event {
-  _id: string;
-  title: string;
-  date: string;
-  description: string;
-  createdAt: string;
-}
-
-interface DonationUsage {
-  _id: string;
-  purpose: string;
-  amountSpent: number;
-  date: string;
-  description: string;
-  createdAt: string;
-}
-
-interface AdminUser {
-  _id: string;
-  fullName: string;
-  email: string;
-  lastLogin?: string;
-}
-
 interface Darshan {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   phone: string;
@@ -102,1326 +70,1099 @@ interface Darshan {
   totalCost: number;
   status: string;
   bookedAt: string;
-  confirmedAt?: string;
+}
+
+interface Donation {
+  _id?: string;
+  id?: string;
+  donationType: string;
+  amount: number;
+  paymentMethod: string;
+  createdAt: string;
+}
+
+interface DonationUsage {
+  _id?: string;
+  id?: string;
+  purpose: string;
+  amountSpent: number;
+  date: string;
+  description: string;
+}
+
+interface Event {
+  _id?: string;
+  id?: string;
+  title: string;
+  date: string;
+  description: string;
+  createdAt: string;
 }
 
 interface Membership {
-  _id: string;
+  _id?: string;
+  id?: string;
   fullName: string;
   email: string;
   phone: string;
   membershipType: string;
-  amount: number;
   status: string;
   createdAt: string;
-  approvedAt?: string;
 }
 
-// ==================== MAIN ADMIN COMPONENT ====================
-const Admin = () => {
-  // Navigation and section state
-  const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState("poojas");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+interface Admin {
+  _id?: string;
+  id?: string;
+  email: string;
+  createdAt: string;
+}
 
-  // Data state
+interface AnalyticsData {
+  totalRevenue: number;
+  totalBookings: number;
+  totalMembers: number;
+  totalEvents: number;
+  pendingApprovals: number;
+}
+
+const Admin: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Navigation state
+  const [activeSection, setActiveSection] = useState<string>('dashboard');
+  
+  // Data states
   const [poojas, setPoojas] = useState<Pooja[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+  const [darshanBookings, setDarshanBookings] = useState<Darshan[]>([]);
   const [donations, setDonations] = useState<Donation[]>([]);
   const [donationUsage, setDonationUsage] = useState<DonationUsage[]>([]);
-  const [darshanBookings, setDarshanBookings] = useState<Darshan[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    date: "",
-    time: "",
-    thingsNeeded: "",
-    image: "",
-  });
-  const [eventFormData, setEventFormData] = useState({
-    title: "",
-    date: "",
-    description: "",
-  });
-  const [usageFormData, setUsageFormData] = useState({
-    purpose: "",
-    amountSpent: "",
-    date: "",
-    description: "",
-  });
-
-  // UI state
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-
-  // Constants
-  const DARSHAN_COSTS = { special: 2000, vip: 1000, regular: 500 };
-  const DAILY_SLOT_CAPACITY = 100;
-
-  // ==================== UTILITY FUNCTIONS ====================
+  const [admins, setAdmins] = useState<Admin[]>([]);
   
-  // Filter expired poojas based on date and time
-  const filterExpiredPoojas = (poojas: Pooja[]) => {
-    const now = new Date();
-    return poojas.filter((pooja) => {
-      const poojaDateTime = new Date(`${pooja.date}T${pooja.time || '23:59'}:00`);
-      return poojaDateTime >= now;
-    });
+  // Analytics state
+  const [analytics, setAnalytics] = useState<AnalyticsData>({
+    totalRevenue: 0,
+    totalBookings: 0,
+    totalMembers: 0,
+    totalEvents: 0,
+    pendingApprovals: 0,
+  });
+  
+  // Form states
+  const [newPooja, setNewPooja] = useState<Partial<Pooja>>({
+    name: '',
+    date: '',
+    time: '',
+    thingsNeeded: '',
+    image: '',
+  });
+  
+  const [newEvent, setNewEvent] = useState<Partial<Event>>({
+    title: '',
+    date: '',
+    description: '',
+  });
+  
+  const [newDonationUsage, setNewDonationUsage] = useState<Partial<DonationUsage>>({
+    purpose: '',
+    amountSpent: 0,
+    date: '',
+    description: '',
+  });
+  
+  // const [newAdmin, setNewAdmin] = useState({ email: '', password: '' });
+  
+  // Loading and message states
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      navigate('/admin-login');
+    } else {
+      fetchAllData();
+    }
+  }, [navigate]);
+
+  // Fetch all data
+  const fetchAllData = async () => {
+    await Promise.all([
+      fetchPoojas(),
+      fetchAccommodations(),
+      fetchDarshanBookings(),
+      fetchDonations(),
+      fetchDonationUsage(),
+      fetchEvents(),
+      fetchMemberships(),
+      fetchAdmins(),
+    ]);
+    calculateAnalytics();
   };
 
-  // Filter expired events based on date
-  const filterExpiredEvents = (events: Event[]) => {
-    const now = new Date();
-    return events.filter((event) => {
-      const eventDateTime = new Date(`${event.date}T23:59:59`);
-      return eventDateTime >= now;
-    });
-  };
-
-  // Calculate total revenue from all sources
   const calculateTotalRevenue = () => {
     const darshanRevenue = darshanBookings
       .filter(d => d.status === "confirmed")
       .reduce((sum, d) => sum + (d.totalCost || 0), 0);
-    
+
     const membershipRevenue = memberships
       .filter(m => m.status === "approved")
       .reduce((sum, m) => sum + (m.amount || 0), 0);
-    
+
     const accommodationRevenue = accommodations
       .filter(a => a.status === "confirmed")
       .reduce((sum, a) => sum + (a.totalPrice || 0), 0);
-    
+
     const donationRevenue = donations.reduce((sum, d) => sum + (d.amount || 0), 0);
 
-    return darshanRevenue + membershipRevenue + accommodationRevenue + donationRevenue;
+    const donationSpent = donationUsage.reduce((sum, u) => sum + (u.amountSpent || 0), 0);
+
+    // Bank balance logic: Total incoming minus funds used (donation usage)
+    return darshanRevenue + membershipRevenue + accommodationRevenue + donationRevenue - donationSpent;
   };
 
-  // Calculate darshan cost based on type and number of people
-  const calculateDarshanCost = (type: string, numberOfPeople: number) => {
-    const normalizedType = type?.toLowerCase() || "";
-    switch (normalizedType) {
-      case "special":
-        return DARSHAN_COSTS.special;
-      case "vip":
-        return DARSHAN_COSTS.vip * numberOfPeople;
-      case "regular":
-        return DARSHAN_COSTS.regular * (numberOfPeople || 1);
-      default:
-        return 0;
-    }
-  };
+  const calculateAnalytics = () => {
+    const revenue = calculateTotalRevenue();
 
-  // Get available slots for a specific date
-  const getAvailableSlots = (date: string) => {
-    if (!date) return DAILY_SLOT_CAPACITY;
-    const bookingsOnDate = darshanBookings.filter(
-      (booking) => booking.date === date && booking.status === "confirmed"
-    );
-    const totalPeople = bookingsOnDate.reduce(
-      (sum, booking) => sum + (booking.numberOfPeople || 0),
-      0
-    );
-    return Math.max(0, DAILY_SLOT_CAPACITY - totalPeople);
-  };
+    const bookings =
+      accommodations.length +
+      darshanBookings.length;
 
-  // Get booked date ranges for accommodation
-  const getBookedDates = () => {
-    const bookedRanges: { start: string; end: string; roomType: string }[] = [];
-    accommodations.forEach((booking) => {
-      bookedRanges.push({
-        start: booking.checkInDate,
-        end: booking.checkOutDate,
-        roomType: booking.roomType,
-      });
+    const pending =
+      accommodations.filter(a => a.status === 'pending').length +
+      memberships.filter(m => m.status === 'pending').length;
+
+    setAnalytics({
+      totalRevenue: revenue,
+      totalBookings: bookings,
+      totalMembers: memberships.filter(m => m.status === 'approved').length,
+      totalEvents: events.length,
+      pendingApprovals: pending,
     });
-    return bookedRanges;
   };
 
-  // Validate URL format
-  const isValidUrl = (url: string) => {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  };
 
-  // Format date to readable string
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "Invalid Date";
-    }
-  };
-
-  // Get donation type display name
-  const getDonationTypeName = (type: string) => {
-    switch (type) {
-      case "annadanam":
-        return "Annadanam";
-      case "renovation":
-        return "Temple Renovation";
-      case "pooja":
-        return "Special Pooja";
-      default:
-        return type;
-    }
-  };
-
-  // ==================== API FUNCTIONS ====================
-  
-  // Verify admin authentication
-  const verifyAdmin = async () => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      navigate("/admin-login");
-      return;
-    }
-    try {
-      const response = await fetch(`${API_URL}/api/verify-admin`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Admin verification failed");
-    } catch (err) {
-      console.error("❌ Admin verification error:", err);
-      localStorage.removeItem("adminToken");
-      setError("Session expired. Please log in again.");
-      setTimeout(() => navigate("/admin-login"), 2000);
-    }
-  };
-
-  // Fetch all poojas
+  // Update analytics whenever data changes
+  useEffect(() => {
+    calculateAnalytics();
+  }, [donations, accommodations, darshanBookings, memberships, events]);
+  // Fetch functions
   const fetchPoojas = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/poojas`);
-      if (!response.ok) throw new Error("Failed to fetch poojas");
-      const data: Pooja[] = await response.json();
-      const activePoojas = filterExpiredPoojas(data);
-      setPoojas(activePoojas);
-    } catch (err) {
-      console.error("Poojas fetch error:", err);
-      setError("Failed to load poojas.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all events
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/events`);
-      if (!response.ok) throw new Error("Failed to fetch events");
-      const data: Event[] = await response.json();
-      const activeEvents = filterExpiredEvents(data);
-      setEvents(activeEvents);
-    } catch (err) {
-      console.error("❌ Events fetch error:", err);
-      setError("Failed to load events.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all accommodations
-  const fetchAccommodations = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/accommodations`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch accommodations");
-      const data: Accommodation[] = await response.json();
-      setAccommodations(data);
-    } catch (err) {
-      console.error("❌ Accommodations fetch error:", err);
-      setError("Failed to load accommodations.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all donations
-  const fetchDonations = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/donations`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch donations");
-      const data: Donation[] = await response.json();
-      setDonations(data);
-    } catch (err) {
-      console.error("❌ Donations fetch error:", err);
-      setError("Failed to load donations.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch donation usage records
-  const fetchDonationUsage = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/donation-usage`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch donation usage");
-      const data: DonationUsage[] = await response.json();
-      setDonationUsage(data);
-    } catch (err) {
-      console.error("❌ Donation usage fetch error:", err);
-      setError("Failed to load donation usage records.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all darshan bookings
-  const fetchDarshanBookings = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const token = localStorage.getItem("adminToken");
-      if (!token) throw new Error("No admin token found");
-      const response = await fetch(`${API_URL}/api/darshan`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
-      }
-      const data: Darshan[] = await response.json();
-      setDarshanBookings(data || []);
-    } catch (err: any) {
-      console.error("❌ Darshan bookings fetch error:", err);
-      setError(`Failed to load darshan bookings: ${err.message}`);
-      setDarshanBookings([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all memberships
-  const fetchMemberships = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/membership`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch memberships");
-      const data: Membership[] = await response.json();
-      setMemberships(data);
-    } catch (err) {
-      console.error("❌ Memberships fetch error:", err);
-      setError("Failed to load memberships.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all admin users
-  const fetchAdmins = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/admins`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch admins");
-      const data: AdminUser[] = await response.json();
-      setAdmins(data);
-    } catch (err) {
-      console.error("❌ Admins fetch error:", err);
-      setError("Failed to load admins.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete pooja by ID
-  const deletePooja = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this pooja?")) return;
-    try {
-      const response = await fetch(`${API_URL}/api/poojas/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-      });
-      const result = await response.json();
-      if (response.ok) {
-        setMessage(result.message);
-        fetchPoojas();
-      } else {
-        setError(result.message || "Failed to delete pooja.");
-      }
-    } catch (err) {
-      console.error("❌ Delete pooja error:", err);
-      setError("Failed to delete pooja.");
-    }
-  };
-
-  // Delete event by ID
-  const deleteEvent = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this event?")) return;
-    try {
-      const response = await fetch(`${API_URL}/api/events/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-      });
-      const result = await response.json();
-      if (response.ok) {
-        setMessage(result.message);
-        fetchEvents();
-      } else {
-        setError(result.message || "Failed to delete event.");
-      }
-    } catch (err) {
-      console.error("❌ Delete event error:", err);
-      setError("Failed to delete event.");
-    }
-  };
-
-  // ==================== FORM HANDLERS ====================
-  
-  // Handle pooja form input changes
-  const handlePoojaChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Handle event form input changes
-  const handleEventChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setEventFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Handle donation usage form input changes
-  const handleUsageChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setUsageFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Submit new pooja
-  const handlePoojaSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
-    if (!formData.name || !formData.date || !formData.time) {
-      setError("Name, date, and time are required.");
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
-      setError("Date must be in YYYY-MM-DD format.");
-      return;
-    }
-    if (formData.image && !isValidUrl(formData.image)) {
-      setError("Invalid image URL.");
-      return;
-    }
     try {
       const response = await fetch(`${API_URL}/api/poojas`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify(formData),
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
-      const result = await response.json();
       if (response.ok) {
-        setMessage(result.message);
-        setFormData({ name: "", date: "", time: "", thingsNeeded: "", image: "" });
-        fetchPoojas();
-      } else {
-        setError(result.message || "Failed to add pooja.");
+        const data = await response.json();
+        setPoojas(data);
       }
     } catch (err) {
-      console.error("❌ Pooja submit error:", err);
-      setError("Network error. Please try again.");
+      console.error('Error fetching poojas:', err);
     }
   };
 
-  // Submit new event
-  const handleEventSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
-    if (!eventFormData.title || !eventFormData.date || !eventFormData.description) {
-      setError("Title, date, and description are required.");
-      return;
-    }
+  const fetchAccommodations = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/events`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify(eventFormData),
+      const response = await fetch(`${API_URL}/api/accommodations`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
-      const result = await response.json();
       if (response.ok) {
-        setMessage(result.message);
-        setEventFormData({ title: "", date: "", description: "" });
-        fetchEvents();
-      } else {
-        setError(result.message || "Failed to add event.");
+        const data = await response.json();
+        setAccommodations(data);
       }
     } catch (err) {
-      console.error("❌ Event submit error:", err);
-      setError("Network error. Please try again.");
+      console.error('Error fetching accommodations:', err);
     }
   };
 
-  // Submit donation usage record
-  const handleUsageSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
-    if (!usageFormData.purpose || !usageFormData.amountSpent || !usageFormData.date) {
-      setError("Purpose, amount spent, and date are required.");
-      return;
+  const fetchDarshanBookings = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/darshan`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDarshanBookings(data);
+      }
+    } catch (err) {
+      console.error('Error fetching darshan bookings:', err);
     }
-    const amountSpent = parseFloat(usageFormData.amountSpent);
-    if (isNaN(amountSpent) || amountSpent <= 0) {
-      setError("Amount spent must be a positive number.");
-      return;
+  };
+
+  const fetchDonations = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/donations`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDonations(data);
+      }
+    } catch (err) {
+      console.error('Error fetching donations:', err);
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(usageFormData.date)) {
-      setError("Date must be in YYYY-MM-DD format.");
-      return;
-    }
-    const selectedDate = new Date(usageFormData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    selectedDate.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      setError("Date must be today or a future date.");
-      return;
-    }
+  };
+
+  const fetchDonationUsage = async () => {
     try {
       const response = await fetch(`${API_URL}/api/donation-usage`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify({ ...usageFormData, amountSpent }),
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
-      const result = await response.json();
       if (response.ok) {
-        setMessage(result.message);
-        setUsageFormData({ purpose: "", amountSpent: "", date: "", description: "" });
-        fetchDonationUsage();
-      } else {
-        setError(result.message || "Failed to record donation usage.");
+        const data = await response.json();
+        setDonationUsage(data);
       }
     } catch (err) {
-      console.error("❌ Donation usage submit error:", err);
-      setError("Network error. Please try again.");
+      console.error('Error fetching donation usage:', err);
     }
   };
 
-  // ==================== EFFECTS ====================
-  
-  // Fetch all data on component mount for revenue calculation
-  useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        const token = localStorage.getItem("adminToken");
-        if (!token) return;
-        const headers = { Authorization: `Bearer ${token}` };
-        const [darshanRes, membershipRes, accommodationRes, donationRes] = await Promise.all([
-          fetch(`${API_URL}/api/darshan`, { headers }),
-          fetch(`${API_URL}/api/membership`, { headers }),
-          fetch(`${API_URL}/api/accommodations`, { headers }),
-          fetch(`${API_URL}/api/donations`, { headers }),
-        ]);
-        if (darshanRes.ok) {
-          const data = await darshanRes.json();
-          setDarshanBookings(data || []);
-        }
-        if (membershipRes.ok) {
-          const data = await membershipRes.json();
-          setMemberships(data || []);
-        }
-        if (accommodationRes.ok) {
-          const data = await accommodationRes.json();
-          setAccommodations(data || []);
-        }
-        if (donationRes.ok) {
-          const data = await donationRes.json();
-          setDonations(data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching revenue data:", err);
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/events`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEvents(data);
       }
-    };
-    verifyAdmin();
-    fetchAllData();
-  }, []);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+    }
+  };
 
-  // Fetch section-specific data when active section changes
-  useEffect(() => {
-    setMessage("");
-    setError("");
-    if (activeSection === "poojas") fetchPoojas();
-    else if (activeSection === "events") fetchEvents();
-    else if (activeSection === "accommodation") fetchAccommodations();
-    else if (activeSection === "donations") {
-      fetchDonations();
-      fetchDonationUsage();
-    } else if (activeSection === "admins") fetchAdmins();
-    else if (activeSection === "darshan") fetchDarshanBookings();
-    else if (activeSection === "memberships") fetchMemberships();
-  }, [activeSection]);
+  const fetchMemberships = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/membership`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMemberships(data);
+      }
+    } catch (err) {
+      console.error('Error fetching memberships:', err);
+    }
+  };
 
-  // Calculate total revenue whenever data changes
-  useEffect(() => {
-    const revenue = calculateTotalRevenue();
-    setTotalRevenue(revenue);
-  }, [darshanBookings, memberships, accommodations, donations]);
+  const fetchAdmins = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAdmins(data);
+      }
+    } catch (err) {
+      console.error('Error fetching admins:', err);
+    }
+  };
 
-  // Calculate total donation amounts
-  const totalDonated = donations.reduce((sum, donation) => sum + donation.amount, 0);
-  const totalUsed = donationUsage.reduce((sum, usage) => sum + usage.amountSpent, 0);
-  const remainingBalance = totalDonated - totalUsed;
+  // Handle functions for Pooja
+  const handleAddPooja = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setError('');
 
-  // ==================== RENDER SECTIONS ====================
-  
-  const renderSection = () => {
-    switch (activeSection) {
-      case "poojas":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Manage Poojas
+    try {
+      const response = await fetch(`${API_URL}/api/poojas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+        body: JSON.stringify(newPooja),
+      });
+
+      if (response.ok) {
+        setMessage('Pooja added successfully!');
+        setNewPooja({ name: '', date: '', time: '', thingsNeeded: '', image: '' });
+        fetchPoojas();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to add pooja');
+      }
+    } catch (err) {
+      setError('Error adding pooja');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePooja = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this pooja?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/poojas/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+
+      if (response.ok) {
+        setMessage('Pooja deleted successfully!');
+        fetchPoojas();
+      } else {
+        setError('Failed to delete pooja');
+      }
+    } catch (err) {
+      setError('Error deleting pooja');
+      console.error(err);
+    }
+  };
+
+  // Handle functions for Events
+  const handleAddEvent = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+        body: JSON.stringify(newEvent),
+      });
+
+      if (response.ok) {
+        setMessage('Event added successfully!');
+        setNewEvent({ title: '', date: '', description: '' });
+        fetchEvents();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to add event');
+      }
+    } catch (err) {
+      setError('Error adding event');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/events/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+
+      if (response.ok) {
+        setMessage('Event deleted successfully!');
+        fetchEvents();
+      } else {
+        setError('Failed to delete event');
+      }
+    } catch (err) {
+      setError('Error deleting event');
+      console.error(err);
+    }
+  };
+
+  // Handle functions for Donation Usage
+  const handleAddDonationUsage = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/donation-usage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+        body: JSON.stringify(newDonationUsage),
+      });
+
+      if (response.ok) {
+        setMessage('Donation usage recorded successfully!');
+        setNewDonationUsage({ purpose: '', amountSpent: 0, date: '', description: '' });
+        fetchDonationUsage();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to add donation usage');
+      }
+    } catch (err) {
+      setError('Error adding donation usage');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle accommodation confirmation - FIXED ID VALIDATION
+  const handleConfirmAccommodation = async (id: string | undefined) => {
+    if (!id) {
+      setError('Invalid accommodation ID');
+      return;
+    }
+
+    if (!window.confirm('Confirm this accommodation booking?')) return;
+
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/accommodations/confirm/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessage('Accommodation confirmed successfully! Email sent to guest.');
+      } else {
+        // Try to parse error message from response
+        let errorMessage = 'Failed to confirm accommodation';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseErr) {
+          // If response is HTML (404 page), show custom message
+          if (response.status === 404) {
+            errorMessage = 'Backend route not found. Please check server configuration.';
+          }
+        }
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error('Error confirming accommodation:', err);
+      setError('Network error. Please check if backend server is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // Handle membership approval - FIXED ID VALIDATION
+  const handleApproveMembership = async (id: string | undefined) => {
+    if (!id) {
+      setError('Invalid membership ID');
+      return;
+    }
+
+    if (!window.confirm('Approve this membership?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/membership/approve/${id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+      });
+
+      if (response.ok) {
+        setMessage('Membership approved successfully!');
+        fetchMemberships();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to approve membership');
+      }
+    } catch (err) {
+      setError('Error approving membership');
+      console.error(err);
+    }
+  };
+
+  // Handle admin creation
+  // const handleAddAdmin = async (e: FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   setMessage('');
+  //   setError('');
+
+  //   try {
+  //     const response = await fetch(`${API_URL}/api/admin-signup`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+  //       },
+  //       body: JSON.stringify(newAdmin),
+  //     });
+
+  //     if (response.ok) {
+  //       setMessage('Admin added successfully!');
+  //       setNewAdmin({ email: '', password: '' });
+  //       fetchAdmins();
+  //     } else {
+  //       const errorData = await response.json();
+  //       setError(errorData.message || 'Failed to add admin');
+  //     }
+  //   } catch (err) {
+  //     setError('Error adding admin');
+  //     console.error(err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    navigate('/admin-login');
+  };
+  return (
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 overflow-x-hidden">
+        {/* Header */}
+        <header className="bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-xl">
+          <div className="container mx-auto px-6 py-6 flex justify-between items-center">
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <Wallet className="h-8 w-8" />
+              Admin Dashboard
             </h1>
-            <form onSubmit={handlePoojaSubmit} className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8 hover:shadow-2xl transition-shadow duration-300">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Add New Pooja</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Pooja Name"
-                  value={formData.name}
-                  onChange={handlePoojaChange}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handlePoojaChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-                <input
-                  type="time"
-                  name="time"
-                  placeholder="Time (e.g., 6:00 AM)"
-                  value={formData.time}
-                  onChange={handlePoojaChange}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-              </div>
-              <textarea
-                name="thingsNeeded"
-                placeholder="Things Needed (e.g., Coconut, Durva, Modak)"
-                value={formData.thingsNeeded}
-                onChange={handlePoojaChange}
-                className="border-2 border-orange-200 p-3 rounded-lg mt-6 w-full focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-              />
-              
-              <button
-                type="submit"
-                className="mt-6 w-full md:w-auto bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-3 rounded-lg hover:shadow-lg focus:ring-4 focus:ring-orange-300 transition-all duration-200"
-              >
-                Add Pooja
-              </button>
-              {message && <p className="text-green-600 mt-4 animate-pulse">{message}</p>}
-              {error && <p className="text-red-600 mt-4 animate-pulse">{error}</p>}
-            </form>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Active Poojas</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+            <button
+              onClick={handleLogout}
+              className="bg-white text-orange-600 px-6 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-all duration-300 shadow-md"
+            >
+              Logout
+            </button>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-6 py-8">
+          {/* Messages */}
+          {message && (
+            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {/* Navigation Tabs */}
+          <div className="bg-white rounded-xl shadow-lg p-2 mb-8 overflow-x-auto">
+            <div className="flex gap-2 min-w-max">
+              {[
+                { id: 'dashboard', label: 'Dashboard', icon: <TrendingUp className="h-4 w-4" /> },
+                { id: 'poojas', label: 'Poojas', icon: <HomeIcon className="h-4 w-4" /> },
+                { id: 'accommodations', label: 'Accommodations', icon: <Bed className="h-4 w-4" /> },
+                { id: 'darshan', label: 'Darshan Bookings', icon: <Calendar className="h-4 w-4" /> },
+                { id: 'donations', label: 'Donations', icon: <DollarSign className="h-4 w-4" /> },
+                { id: 'donation-usage', label: 'Donation Usage', icon: <HandHeart className="h-4 w-4" /> },
+                { id: 'events', label: 'Events', icon: <Calendar className="h-4 w-4" /> },
+                { id: 'memberships', label: 'Memberships', icon: <Users className="h-4 w-4" /> },
+                { id: 'admins', label: 'Admins', icon: <Users className="h-4 w-4" /> },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSection(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap ${
+                    activeSection === tab.id
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dashboard Section - NEW */}
+          {activeSection === 'dashboard' && (
+            <div className="space-y-8">
+              <div className="bg-white rounded-xl shadow-lg p-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                  <TrendingUp className="h-8 w-8 text-orange-600" />
+                  Analytics Dashboard
+                </h2>
+                
+                {/* Analytics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105">
+                    <div className="flex items-center justify-between mb-4">
+                      <DollarSign className="h-12 w-12 opacity-80" />
+                      <span className="text-3xl font-bold">₹{analytics.totalRevenue.toLocaleString()}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold">Total Revenue</h3>
+                    <p className="text-green-100 mt-2">From {donations.length} donations</p>
+                  </div>
+
+                  <div 
+                    onClick={() => setActiveSection('accommodations')}
+                    className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <Calendar className="h-12 w-12 opacity-80" />
+                      <span className="text-3xl font-bold">{analytics.totalBookings}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold">Total Bookings</h3>
+                    <p className="text-blue-100 mt-2">Accommodations & Darshan</p>
+                  </div>
+
+                  <div 
+                    onClick={() => setActiveSection('memberships')}
+                    className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <Users className="h-12 w-12 opacity-80" />
+                      <span className="text-3xl font-bold">{analytics.totalMembers}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold">Active Members</h3>
+                    <p className="text-purple-100 mt-2">Approved memberships</p>
+                  </div>
+
+                  <div 
+                    onClick={() => setActiveSection('events')}
+                    className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <Calendar className="h-12 w-12 opacity-80" />
+                      <span className="text-3xl font-bold">{analytics.totalEvents}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold">Total Events</h3>
+                    <p className="text-orange-100 mt-2">Scheduled events</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105">
+                    <div className="flex items-center justify-between mb-4">
+                      <TrendingUp className="h-12 w-12 opacity-80" />
+                      <span className="text-3xl font-bold">{analytics.pendingApprovals}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold">Pending Approvals</h3>
+                    <p className="text-red-100 mt-2">Awaiting action</p>
+                  </div>
+                </div> 
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-amber-50 rounded-xl p-6 border-l-4 border-amber-500">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Pending Accommodations</span>
+                        <span className="font-bold text-orange-600">
+                          {accommodations.filter(a => a.status === 'pending').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Pending Memberships</span>
+                        <span className="font-bold text-orange-600">
+                          {memberships.filter(m => m.status === 'pending').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Darshan Bookings</span>
+                        <span className="font-bold text-orange-600">{darshanBookings.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 rounded-xl p-6 border-l-4 border-blue-500">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Donation Overview</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Donated</span>
+                        <span className="font-bold text-green-600">
+                          ₹{donations.reduce((sum, d) => sum + d.amount, 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Used</span>
+                        <span className="font-bold text-red-600">
+                          ₹{donationUsage.reduce((sum, u) => sum + u.amountSpent, 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Remaining Amount</span>
+                        <span className="font-bold text-blue-600">
+                          ₹{(donations.reduce((sum, d) => sum + d.amount, 0) - 
+                             donationUsage.reduce((sum, u) => sum + u.amountSpent, 0)).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-              {!loading && poojas.length === 0 && <p className="text-gray-500">No active poojas</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Poojas Section */}
+          {activeSection === 'poojas' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Manage Poojas</h2>
+              
+              {/* Add Pooja Form */}
+              <form onSubmit={handleAddPooja} className="mb-8 p-6 bg-orange-50 rounded-xl border-2 border-orange-200">
+                <h3 className="text-xl font-semibold mb-4 text-orange-800">Add New Pooja</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Pooja Name"
+                    value={newPooja.name}
+                    onChange={(e) => setNewPooja({ ...newPooja, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={newPooja.date}
+                    onChange={(e) => setNewPooja({ ...newPooja, date: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="time"
+                    value={newPooja.time}
+                    onChange={(e) => setNewPooja({ ...newPooja, time: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Things Needed"
+                    value={newPooja.thingsNeeded}
+                    onChange={(e) => setNewPooja({ ...newPooja, thingsNeeded: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-orange-600 to-amber-600 text-white py-3 rounded-lg font-semibold hover:from-orange-700 hover:to-amber-700 transition-all duration-300 disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : 'Add Pooja'}
+                </button>
+              </form>
+
+              {/* Poojas List */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {poojas.map((pooja) => (
-                  <div key={pooja._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-orange-700">{pooja.name}</h3>
-                      <button
-                        onClick={() => deletePooja(pooja._id)}
-                        className="text-red-600 hover:text-red-800 font-bold text-sm px-2 py-1 rounded hover:bg-red-50 transition-all duration-200"
-                      >
-                        Delete
-                      </button>
+                  <div key={pooja._id || pooja.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-orange-50">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{pooja.name}</h3>
+                    <div className="space-y-2 text-gray-700 mb-4">
+                      <p><strong>Date:</strong> {pooja.date}</p>
+                      <p><strong>Time:</strong> {pooja.time}</p>
+                      {pooja.thingsNeeded && <p><strong>Things Needed:</strong> {pooja.thingsNeeded}</p>}
+                      {pooja.image && (
+                        <img src={pooja.image} alt={pooja.name} className="w-full h-48 object-cover rounded-lg mt-3" />
+                      )}
                     </div>
-                    <p className="text-gray-600">{pooja.date}, {pooja.time}</p>
-                    {pooja.thingsNeeded && <p className="text-sm text-gray-500 mt-2">Things Needed: {pooja.thingsNeeded}</p>}
+                    <button
+                      onClick={() => handleDeletePooja(pooja._id || pooja.id || '')}
+                      className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-all duration-300"
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        );
+          )}
 
-      case "events":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Manage Events
-            </h1>
-            <form onSubmit={handleEventSubmit} className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8 hover:shadow-2xl transition-shadow duration-300">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Add New Event</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="Event Title"
-                  value={eventFormData.title}
-                  onChange={handleEventChange}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-                <input
-                  type="date"
-                  name="date"
-                  value={eventFormData.date}
-                  onChange={handleEventChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-              </div>
-              <textarea
-                name="description"
-                placeholder="Event Description"
-                value={eventFormData.description}
-                onChange={handleEventChange}
-                className="border-2 border-orange-200 p-3 rounded-lg mt-6 w-full focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                rows={4}
-                required
-              />
-              <button
-                type="submit"
-                className="mt-6 w-full md:w-auto bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-3 rounded-lg hover:shadow-lg focus:ring-4 focus:ring-orange-300 transition-all duration-200"
-              >
-                Add Event
-              </button>
-              {message && <p className="text-green-600 mt-4 animate-pulse">{message}</p>}
-              {error && <p className="text-red-600 mt-4 animate-pulse">{error}</p>}
-            </form>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Active Events</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && events.length === 0 && <p className="text-gray-500">No active events</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {events.map((event) => (
-                  <div key={event._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-orange-700">{event.title}</h3>
-                      <button
-                        onClick={() => deleteEvent(event._id)}
-                        className="text-red-600 hover:text-red-800 font-bold text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    <p className="text-gray-600 mb-2">{event.date}</p>
-                    <p className="text-sm text-gray-500">{event.description}</p>
-                    <p className="text-xs text-gray-400 mt-2">Created: {formatDate(event.createdAt)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "donations":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Manage Donations
-            </h1>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Donation Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 bg-gradient-to-br from-green-100 to-green-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <p className="text-sm text-gray-600">Total Donated</p>
-                  <p className="text-2xl font-bold text-green-800">₹{totalDonated.toFixed(2)}</p>
-                </div>
-                <div className="p-6 bg-gradient-to-br from-red-100 to-red-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <p className="text-sm text-gray-600">Total Used</p>
-                  <p className="text-2xl font-bold text-red-800">₹{totalUsed.toFixed(2)}</p>
-                </div>
-                <div className="p-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <p className="text-sm text-gray-600">Remaining Balance</p>
-                  <p className="text-2xl font-bold text-blue-800">₹{remainingBalance.toFixed(2)}</p>
-                </div>
-              </div>
-            </div>
-            <form onSubmit={handleUsageSubmit} className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8 hover:shadow-2xl transition-shadow duration-300">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Record Donation Usage</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <input
-                  type="text"
-                  name="purpose"
-                  placeholder="Purpose (e.g., Temple Renovation)"
-                  value={usageFormData.purpose}
-                  onChange={handleUsageChange}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-                <input
-                  type="number"
-                  name="amountSpent"
-                  placeholder="Amount Spent (₹)"
-                  value={usageFormData.amountSpent}
-                  onChange={handleUsageChange}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  min="0.01"
-                  step="0.01"
-                  required
-                />
-                <input
-                  type="date"
-                  name="date"
-                  value={usageFormData.date}
-                  onChange={handleUsageChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="border-2 border-orange-200 p-3 rounded-lg focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-                  required
-                />
-              </div>
-              <textarea
-                name="description"
-                placeholder="Description (e.g., Materials purchased for roof repair)"
-                value={usageFormData.description}
-                onChange={handleUsageChange}
-                className="border-2 border-orange-200 p-3 rounded-lg mt-6 w-full focus:ring-4 focus:ring-orange-300 focus:border-orange-500 transition-all duration-200"
-              />
-              <button
-                type="submit"
-                className="mt-6 w-full md:w-auto bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-3 rounded-lg hover:shadow-lg focus:ring-4 focus:ring-orange-300 transition-all duration-200"
-              >
-                Record Usage
-              </button>
-              {message && <p className="text-green-600 mt-4 animate-pulse">{message}</p>}
-              {error && <p className="text-red-600 mt-4 animate-pulse">{error}</p>}
-            </form>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Donation Usage Records</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && donationUsage.length === 0 && <p className="text-gray-500">No donation usage records available.</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {donationUsage.map((usage) => (
-                  <div key={usage._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div>
-                        <p className="font-semibold text-orange-700">Purpose: {usage.purpose}</p>
-                        <p>Amount Spent: ₹{usage.amountSpent.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p>Date: {usage.date}</p>
-                        <p>Recorded At: {formatDate(usage.createdAt)}</p>
-                        {usage.description && <p className="text-sm text-gray-500">Description: {usage.description}</p>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">All Donations</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && donations.length === 0 && <p className="text-gray-500">No donations available.</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {donations.map((donation) => (
-                  <div key={donation._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div>
-                        <p className="font-semibold text-orange-700">Type: {getDonationTypeName(donation.donationType)}</p>
-                        <p>Amount: ₹{donation.amount.toFixed(2)}</p>
-                        <p>Method: {donation.paymentMethod === "card" ? "Credit/Debit Card" : donation.paymentMethod === "upi" ? "UPI" : "Net Banking"}</p>
-                      </div>
-                      <div>
-                        {donation.cardNumber && <p>Card Ending: {donation.cardNumber}</p>}
-                        {donation.upiId && <p>UPI ID: {donation.upiId}</p>}
-                        <p>Donated At: {formatDate(donation.createdAt)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "accommodation":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Manage Accommodation
-            </h1>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Room Availability</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && accommodations.length === 0 && <p className="text-gray-500">No bookings yet.</p>}
-              {!loading && accommodations.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {getBookedDates().map((range, index) => {
-                    const isBooked = accommodations.some(
-                      (booking) =>
-                        new Date(booking.checkInDate) <= new Date(range.start) &&
-                        new Date(booking.checkOutDate) > new Date(range.start) &&
-                        booking.status === "confirmed"
-                    );
-                    return (
-                      <div key={index} className={`p-4 border rounded-xl hover:shadow-lg transition-shadow duration-300 ${isBooked ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}`}>
-                        <p className="font-semibold text-orange-700">Room Type: {range.roomType}</p>
-                        <p className="text-gray-600">From: {range.start}</p>
-                        <p className="text-gray-600">To: {range.end}</p>
-                        <p className={isBooked ? "text-red-600" : "text-green-600"}>Status: {isBooked ? "Booked" : "Available"}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">All Bookings</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && accommodations.length === 0 && <p className="text-gray-500">No accommodation bookings available.</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Accommodations Section */}
+          {activeSection === 'accommodations' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Accommodation Bookings</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accommodations.map((booking) => (
-                  <div key={booking._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="break-words w-full overflow-hidden text-ellipsis">
-                        <p className="font-semibold text-orange-700">Name: {booking.fullName}</p>
-                        <p className="truncate text-gray-800" title={booking.email}>
-                          Email: {booking.email}
-                        </p>
-                        <p>Phone: {booking.phone}</p>
-                      </div>
-
-                      <div>
-                        <p>Room Type: {booking.roomType}</p>
-                        <p>Check-in Date: {booking.checkInDate}</p>
-                        <p>Check-out Date: {booking.checkOutDate}</p>
-                        <p>Guests: {booking.numberOfPeople}</p>
-                        <p>Total Price: ₹{(booking.totalPrice || 0).toFixed(2)}</p>
-                        <p>
-                          Status:{" "}
-                          <span className={booking.status === "confirmed" ? "text-green-600" : "text-yellow-600"}>
-                            {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1) || "Pending"}
-                          </span>
-                        </p>
-                        <p>Booked At: {formatDate(booking.bookedAt)}</p>
-                        {booking.confirmedAt && <p>Confirmed At: {formatDate(booking.confirmedAt)}</p>}
-                      </div>
+                  <div key={booking._id || booking.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300">
+                    <div className={`mb-4 px-3 py-1 rounded-full text-sm font-semibold inline-block ${
+                      booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {booking.status}
                     </div>
-                    {booking.status === "pending" && (
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{booking.fullName}</h3>
+                    <div className="space-y-2 text-gray-700 mb-4">
+                      <p>
+                        <strong>Email:</strong>
+                        <span 
+                          className="inline-block max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis align-bottom ml-1 cursor-pointer"
+                          title={booking.email}
+                        >
+                          {booking.email}
+                        </span>
+                      </p>
+                      <p><strong>Phone:</strong> {booking.phone}</p>
+                      <p><strong>Room Type:</strong> {booking.roomType}</p>
+                      <p><strong>Check-in:</strong> {booking.checkInDate}</p>
+                      <p><strong>Check-out:</strong> {booking.checkOutDate}</p>
+                      <p><strong>Guests:</strong> {booking.numberOfPeople}</p>
+                      <p><strong>Total Price:</strong> ₹{booking.totalPrice}</p>
+                      <p className="text-sm text-gray-500">Booked: {new Date(booking.bookedAt).toLocaleString()}</p>
+                    </div>
+                    {booking.status === 'pending' && (
                       <button
-                        onClick={async () => {
-                          try {
-                            const response = await fetch(`${API_URL}/api/accommodations/confirm/${booking._id}`, {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-                              },
-                            });
-                            const result = await response.json();
-                            if (response.ok) {
-                              setMessage(`Booking confirmed for ${booking.fullName}.`);
-                              fetchAccommodations();
-                            } else {
-                              setError(result.message || "Failed to confirm booking");
-                            }
-                          } catch (err) {
-                            console.error("❌ Confirm booking error:", err);
-                            setError("Failed to confirm booking");
-                          }
-                        }}
-                        className="w-full mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:shadow-lg focus:ring-4 focus:ring-green-300 transition-all duration-200"
+                        onClick={() => handleConfirmAccommodation(booking._id || booking.id)}
+                        className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-all duration-300"
                       >
-                        Approve Booking
+                        Confirm Booking
                       </button>
                     )}
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        );
+          )}
 
-      case "darshan":
-        return (
-          <ErrorBoundary>
-            <div className="p-4 md:p-8 animate-fade-in">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-                Darshan Bookings
-              </h1>
-              <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl mb-8">
-                <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">Available Darshan Slots</h2>
-                {loading && (
-                  <div className="flex justify-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                  </div>
-                )}
-                {!loading && darshanBookings.length === 0 && <p className="text-gray-500">No bookings yet to show availability.</p>}
-                {!loading && darshanBookings.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[...new Set(darshanBookings.map((booking) => booking.date))].map((date) => {
-                      const availableSlots = getAvailableSlots(date);
-                      return (
-                        <div key={date} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                          <p className="font-semibold text-orange-700">Date: {date || "N/A"}</p>
-                          <p>
-                            Available Slots:{" "}
-                            <span className={availableSlots > 0 ? "text-green-600" : "text-red-600"}>
-                              {availableSlots > 0 ? availableSlots : "Fully Booked"}
-                            </span>
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-                <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">All Darshan Bookings</h2>
-                {loading && (
-                  <div className="flex justify-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                  </div>
-                )}
-                {error && <p className="text-red-600 text-center mb-4 animate-pulse">{error}</p>}
-                {!loading && !error && darshanBookings.length === 0 && <p className="text-gray-500 text-center">No darshan bookings available.</p>}
-                {!loading && !error && darshanBookings.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {darshanBookings.map((booking) => (
-                      <div key={booking._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="break-words w-full overflow-hidden text-ellipsis">
-                            <p className="font-semibold text-orange-700">Name: {booking.name || "N/A"}</p>
-                            <p className="truncate text-gray-800" title={booking.email}>Email: {booking.email || "N/A"}</p>
-                            <p>Phone: {booking.phone || "N/A"}</p>
-                            <p className="text-gray-800 break-words whitespace-normal hyphens-auto">Address: {booking.address || "N/A"}</p>
-                          </div>
-                          <div>
-                            <p>Date: {booking.date || "N/A"}</p>
-                            <p>Time: {booking.time || "N/A"}</p>
-                            <p>Type: {(booking.type && booking.type.charAt(0).toUpperCase() + booking.type.slice(1)) || "N/A"}</p>
-                            <p>Guests: {booking.numberOfPeople || 0}</p>
-                            <p className="font-bold text-orange-600">
-                              Cost: ₹{(booking.totalCost || 0).toFixed(2)}
-                              {booking.type?.toLowerCase() === "regular" && <span className="text-xs text-gray-500"> (₹500/person)</span>}
-                              {booking.type?.toLowerCase() === "vip" && <span className="text-xs text-gray-500"> (₹1,000/person)</span>}
-                              {booking.type?.toLowerCase() === "special" && <span className="text-xs text-gray-500"> (₹2,000/person)</span>}
-                            </p>
-                            <p>Status: <span className="text-green-600 font-semibold">Confirmed</span></p>
-                            <p>Booked At: {formatDate(booking.bookedAt)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </ErrorBoundary>
-        );
-
-      case "memberships":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Manage Memberships
-            </h1>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">All Membership Applications</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {error && <p className="text-red-600 text-center mb-4 animate-pulse">{error}</p>}
-              {!loading && memberships.length === 0 && <p className="text-gray-500 text-center">No membership applications yet.</p>}
-              {!loading && memberships.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {memberships.map((membership) => (
-                    <div key={membership._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2">
-                        <div className="min-w-0 break-words whitespace-normal flex-1">
-                          <h3 className="text-lg font-bold text-orange-700 break-words whitespace-normal">
-                            {membership.fullName}
-                          </h3>
-                          <p className="text-sm text-gray-600 break-words whitespace-normal">
-                            {membership.email}
-                          </p>
-                          <p className="text-sm text-gray-600 break-words whitespace-normal">
-                            {membership.phone}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`self-start sm:self-center px-3 py-1 rounded-full text-xs font-semibold ${
-                            membership.status === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {membership.status.charAt(0).toUpperCase() + membership.status.slice(1)}
-                        </span>
-                      </div>
-
-
-                      <div className="space-y-2 mb-4">
-                        <p className="text-sm">
-                          <strong>Membership Type:</strong> {membership.membershipType.charAt(0).toUpperCase() + membership.membershipType.slice(1)}
-                        </p>
-                        <p className="text-sm">
-                          <strong>Amount:</strong> ₹{membership.amount?.toLocaleString() || "N/A"}
-                        </p>
-                        <p className="text-sm text-gray-500">Applied on: {formatDate(membership.createdAt)}</p>
-                        {membership.approvedAt && <p className="text-sm text-green-600">Approved on: {formatDate(membership.approvedAt)}</p>}
-                      </div>
-                      {membership.status === "pending" && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`${API_URL}/api/membership/approve/${membership._id}`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-                                },
-                              });
-                              const result = await response.json();
-                              if (response.ok) {
-                                setMessage(`Membership approved for ${membership.fullName}. Confirmation email sent.`);
-                                fetchMemberships();
-                              } else {
-                                setError(result.message || "Failed to approve membership");
-                              }
-                            } catch (err) {
-                              console.error("❌ Approve membership error:", err);
-                              setError("Failed to approve membership");
-                            }
-                          }}
-                          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:shadow-lg focus:ring-4 focus:ring-green-300 transition-all duration-200"
-                        >
-                          Approve Membership
-                        </button>
-                      )}
+          {/* Darshan Bookings Section */}
+          {activeSection === 'darshan' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Darshan Bookings</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {darshanBookings.map((booking) => (
+                  <div key={booking._id || booking.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300">
+                    <div className="mb-4 px-3 py-1 rounded-full text-sm font-semibold inline-block bg-green-100 text-green-700">
+                      {booking.status}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case "admins":
-        return (
-          <div className="p-4 md:p-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500 leading-snug pb-2 mb-8">
-              Admin Users
-            </h1>
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6">All Admins</h2>
-              {loading && (
-                <div className="flex justify-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-              {!loading && admins.length === 0 && <p className="text-gray-500">No admins available.</p>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {admins.map((admin) => (
-                  <div key={admin._id} className="p-4 border border-orange-100 rounded-xl hover:shadow-lg transition-shadow duration-300">
-                    <p className="font-semibold text-orange-700">Name: {admin.fullName}</p>
-                    <p>Email: {admin.email}</p>
-                    {admin.lastLogin && <p>Last Login: {formatDate(admin.lastLogin)}</p>}
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{booking.name}</h3>
+                    <div className="space-y-2 text-gray-700">
+                      <p>
+                        <strong>Email:</strong>
+                        <span 
+                          className="inline-block max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis align-bottom ml-1 cursor-pointer"
+                          title={booking.email}
+                        >
+                          {booking.email}
+                        </span>
+                      </p>
+                      <p><strong>Phone:</strong> {booking.phone}</p>
+                      <p className="break-words whitespace-normal">
+                        <strong>Address:</strong> {booking.address}
+                      </p>
+                      <p><strong>Date:</strong> {booking.date}</p>
+                      <p><strong>Time:</strong> {booking.time}</p>
+                      <p><strong>Type:</strong> {booking.type}</p>
+                      <p><strong>People:</strong> {booking.numberOfPeople}</p>
+                      <p><strong>Total Cost:</strong> ₹{booking.totalCost}</p>
+                      <p className="text-sm text-gray-500">Booked: {new Date(booking.bookedAt).toLocaleString()}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        );
+          )}
 
-      default:
-        return <div className="p-8 text-gray-600 text-center">Invalid section selected.</div>;
-    }
-  };
-
-  // ==================== RENDER ====================
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-100 to-yellow-100">
-      {/* Desktop Navbar */}
-      <nav className="hidden lg:block bg-gradient-to-r from-orange-700 to-yellow-600 text-white p-4 shadow-lg sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-6">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Admin</h1>
-              <h1 className="text-2xl font-extrabold tracking-tight leading-tight">Dashboard</h1>
+          {/* Donations Section */}
+          {activeSection === 'donations' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Donations</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {donations.map((donation) => (
+                  <div key={donation._id || donation.id} className="p-6 border border-green-100 rounded-xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-green-50">
+                    <h3 className="text-2xl font-bold text-green-600 mb-3">₹{donation.amount.toLocaleString()}</h3>
+                    <div className="space-y-2 text-gray-700">
+                      <p><strong>Type:</strong> {donation.donationType}</p>
+                      <p><strong>Payment Method:</strong> {donation.paymentMethod}</p>
+                      <p className="text-sm text-gray-500">Date: {new Date(donation.createdAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center bg-green-600 px-4 py-2 rounded-lg shadow-md">
-              <Wallet className="h-5 w-5 mr-2" />
-              <span className="font-bold">₹{totalRevenue.toLocaleString()}</span>
+          )}
+
+          {/* Donation Usage Section */}
+          {activeSection === 'donation-usage' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Donation Usage</h2>
+              
+              {/* Add Donation Usage Form */}
+              <form onSubmit={handleAddDonationUsage} className="mb-8 p-6 bg-orange-50 rounded-xl border-2 border-orange-200">
+                <h3 className="text-xl font-semibold mb-4 text-orange-800">Record Donation Usage</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Purpose"
+                    value={newDonationUsage.purpose}
+                    onChange={(e) => setNewDonationUsage({ ...newDonationUsage, purpose: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Amount Spent"
+                    value={newDonationUsage.amountSpent}
+                    onChange={(e) => setNewDonationUsage({ ...newDonationUsage, amountSpent: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={newDonationUsage.date}
+                    onChange={(e) => setNewDonationUsage({ ...newDonationUsage, date: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={newDonationUsage.description}
+                    onChange={(e) => setNewDonationUsage({ ...newDonationUsage, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    rows={1}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-orange-600 to-amber-600 text-white py-3 rounded-lg font-semibold hover:from-orange-700 hover:to-amber-700 transition-all duration-300 disabled:opacity-50"
+                >
+                  {loading ? 'Recording...' : 'Record Usage'}
+                </button>
+              </form>
+
+              {/* Donation Usage List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {donationUsage.map((usage) => (
+                  <div key={usage._id || usage.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-red-50">
+                    <h3 className="text-2xl font-bold text-red-600 mb-3">₹{usage.amountSpent.toLocaleString()}</h3>
+                    <div className="space-y-2 text-gray-700">
+                      <p><strong>Purpose:</strong> {usage.purpose}</p>
+                      <p><strong>Date:</strong> {usage.date}</p>
+                      {usage.description && <p><strong>Description:</strong> {usage.description}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="flex space-x-3">
-            {["poojas", "events", "donations", "accommodation", "darshan", "memberships", "admins"].map((section) => (
-              <button
-                key={section}
-                onClick={() => setActiveSection(section)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:shadow-lg ${
-                  activeSection === section ? "bg-orange-900 shadow-inner" : "bg-orange-600 hover:bg-orange-500"
-                }`}
-              >
-                {section.charAt(0).toUpperCase() + section.slice(1)}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                localStorage.removeItem("adminToken");
-                setMessage("Logged out successfully.");
-                setTimeout(() => navigate("/admin-login"), 1000);
-              }}
-              className="px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 hover:shadow-lg transition-all duration-200 ml-2"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
+          )}
 
-      {/* Mobile Navbar */}
-      <nav className="lg:hidden bg-gradient-to-r from-orange-700 to-yellow-600 text-white p-4 shadow-lg sticky top-0 z-10">
-        <div className="flex justify-between items-center mb-3">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight leading-tight">Admin</h1>
-            <h1 className="text-xl font-extrabold tracking-tight leading-tight">Dashboard</h1>
-          </div>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 hover:bg-orange-600 rounded-lg transition-all duration-200"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex items-center bg-green-600 px-4 py-2 rounded-lg shadow-md w-fit mb-3">
-          <Wallet className="h-4 w-4 mr-2" />
-          <span className="font-bold text-sm">₹{totalRevenue.toLocaleString()}</span>
-        </div>
-        {mobileMenuOpen && (
-          <div className="mt-4 space-y-2">
-            {["poojas", "events", "donations", "accommodation", "darshan", "memberships", "admins"].map((section) => (
-              <button
-                key={section}
-                onClick={() => {
-                  setActiveSection(section);
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 text-left hover:shadow-lg ${
-                  activeSection === section ? "bg-orange-900 shadow-inner" : "bg-orange-600 hover:bg-orange-500"
-                }`}
-              >
-                {section.charAt(0).toUpperCase() + section.slice(1)}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                localStorage.removeItem("adminToken");
-                setMessage("Logged out successfully.");
-                setTimeout(() => navigate("/admin-login"), 1000);
-              }}
-              className="w-full px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 hover:shadow-lg transition-all duration-200 text-left"
-            >
-              Logout
-            </button>
-          </div>
-        )}
-      </nav>
+          {/* Events Section */}
+          {activeSection === 'events' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Manage Events</h2>
+              
+              {/* Add Event Form */}
+              <form onSubmit={handleAddEvent} className="mb-8 p-6 bg-orange-50 rounded-xl border-2 border-orange-200">
+                <h3 className="text-xl font-semibold mb-4 text-orange-800">Add New Event</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Event Title"
+                    value={newEvent.title}
+                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={newEvent.date}
+                    onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                  <textarea
+                    placeholder="Event Description"
+                    value={newEvent.description}
+                    onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 md:col-span-2"
+                    rows={3}
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-orange-600 to-amber-600 text-white py-3 rounded-lg font-semibold hover:from-orange-700 hover:to-amber-700 transition-all duration-300 disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : 'Add Event'}
+                </button>
+              </form>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8">
-        {message && <p className="text-green-600 text-center mb-4 animate-pulse">{message}</p>}
-        {error && !activeSection && <p className="text-red-600 text-center mb-4 animate-pulse">{error}</p>}
-        <ErrorBoundary>{renderSection()}</ErrorBoundary>
-      </main>
+              {/* Events List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event) => (
+                  <div key={event._id || event.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{event.title}</h3>
+                    <div className="space-y-2 text-gray-700 mb-4">
+                      <p><strong>Date:</strong> {event.date}</p>
+                      <p><strong>Description:</strong> {event.description}</p>
+                      <p className="text-sm text-gray-500">Created: {new Date(event.createdAt).toLocaleString()}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteEvent(event._id || event.id || '')}
+                      className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-all duration-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Styles */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.5s ease-out;
-        }
-      `}</style>
-    </div>
+          {/* Memberships Section */}
+          {activeSection === 'memberships' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Membership Applications</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {memberships.map((membership) => (
+                  <div key={membership._id || membership.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300">
+                    <div className={`mb-4 px-3 py-1 rounded-full text-sm font-semibold inline-block ${
+                      membership.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {membership.status}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{membership.fullName}</h3>
+                    <div className="space-y-2 text-gray-700 mb-4">
+                      <p>
+                        <strong>Email:</strong>
+                        <span 
+                          className="inline-block max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis align-bottom ml-1 cursor-pointer"
+                          title={membership.email}
+                        >
+                          {membership.email}
+                        </span>
+                      </p>
+                      <p><strong>Phone:</strong> {membership.phone}</p>
+                      <p><strong>Type:</strong> {membership.membershipType}</p>
+                      <p className="text-sm text-gray-500">Applied: {new Date(membership.createdAt).toLocaleString()}</p>
+                    </div>
+                    {membership.status === 'pending' && (
+                      <button
+                        onClick={() => handleApproveMembership(membership._id || membership.id)}
+                        className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-all duration-300"
+                      >
+                        Approve
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Admins Section */}
+          {activeSection === 'admins' && (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8">Admins</h2>
+              
+              {/* Admins List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {admins.map((admin) => (
+                  <div key={admin._id || admin.id} className="p-6 border border-orange-100 rounded-xl hover:shadow-xl transition-all duration-300">
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{admin.email}</h3>
+                    <p className="text-sm text-gray-500">Created: {new Date(admin.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

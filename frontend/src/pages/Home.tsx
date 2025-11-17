@@ -844,53 +844,36 @@
 // }
 
 
+
 import { Calendar, Gift, Users, Clock, Mail, Phone, MapPin, IndianRupee, Instagram, Facebook, Youtube, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
-
-interface HomeProps {
-  showEventCalendar: boolean;
-  toggleEventCalendar: () => void;
-}
-
-// Interface for donation data
-interface DonationData {
-  totalDonated: number;
-  totalUsed: number;
-  remainingBalance: number;
-  donationUsage: DonationUsage[];
-}
-
-interface DonationUsage {
-  purpose: string;
-  amountSpent: number;
-  description: string;
-  date: string;
-}
-
-// Interface for events
-interface TempleEvent {
-  title: string;
-  description: string;
-  date: string;
-  createdAt: string;
-}
+import { NavLink } from 'react-router-dom';
 
 // Environment variable for API URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
-  const [donationData, setDonationData] = useState<DonationData>({
+interface Props {
+  showEventCalendar?: boolean;
+  toggleEventCalendar: () => void;
+}
+
+export function Home({ showEventCalendar, toggleEventCalendar }: Props) {
+  // Initialize with mock data immediately for visible content
+  const [donationData, setDonationData] = useState({
     totalDonated: 0,
     totalUsed: 0,
     remainingBalance: 0,
-    donationUsage: [],
+    donationUsage: [] as Array<{
+      _id?: string;
+      purpose: string;
+      amountSpent: number;
+      description: string;
+      date: string;
+    }>
   });
-  const [loading, setLoading] = useState<boolean>(true);
-  const [events, setEvents] = useState<TempleEvent[]>([]);
-  const [feedback, setFeedback] = useState({ name: "", email: "", message: "" });
-  const [feedbackStatus, setFeedbackStatus] = useState<string>("");
-  const [currentSlide, setCurrentSlide] = useState<number>(0);
-  const [progress, setProgress] = useState<number>(0);
+  
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
 
   // Carousel images from assets
   const carouselImages = [
@@ -921,6 +904,9 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
     }
   ];
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [progress, setProgress] = useState(0);
+
   // Auto-advance carousel with visible progress
   useEffect(() => {
     const interval = setInterval(() => {
@@ -937,101 +923,121 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
   }, [currentSlide, carouselImages.length]);
 
   // Navigate to previous slide
-  const prevSlide = (): void => {
+  const prevSlide = () => {
     setCurrentSlide((curr) => (curr - 1 + carouselImages.length) % carouselImages.length);
     setProgress(0);
   };
 
   // Navigate to next slide
-  const nextSlide = (): void => {
+  const nextSlide = () => {
     setCurrentSlide((curr) => (curr + 1) % carouselImages.length);
     setProgress(0);
   };
 
   // Reset progress when slide changes manually
-  const handleSlideChange = (index: number): void => {
+  const handleSlideChange = (index: number) => {
     setCurrentSlide(index);
     setProgress(0);
   };
 
-  // Fetch donation data
+  // Fetch donation data from API
   useEffect(() => {
-    const fetchDonationData = async (): Promise<void> => {
-      setLoading(true);
+    const fetchDonationData = async () => {
       try {
-        const adminToken = localStorage.getItem("adminToken");
         const [donationsRes, usageRes] = await Promise.all([
           fetch(`${API_URL}/api/donations`, {
-            headers: { 
-              'Content-Type': 'application/json',
-              ...(adminToken && { Authorization: `Bearer ${adminToken}` })
+            headers: {
+              'Content-Type': 'application/json'
             },
-          }),
+          }).catch(() => null),
           fetch(`${API_URL}/api/donation-usage`, {
-            headers: { 
-              'Content-Type': 'application/json',
-              ...(adminToken && { Authorization: `Bearer ${adminToken}` })
+            headers: {
+              'Content-Type': 'application/json'
             },
-          }),
+          }).catch(() => null),
         ]);
 
-        if (!donationsRes.ok || !usageRes.ok) {
-          throw new Error('Failed to fetch data');
+        let donations = [];
+        let donationUsage = [];
+
+        if (donationsRes && donationsRes.ok) {
+          try {
+            const donationsData = await donationsRes.json();
+            donations = Array.isArray(donationsData) ? donationsData : [];
+          } catch (jsonErr) {
+            console.warn('JSON parse error for donations:', jsonErr);
+          }
         }
 
-        const donations: any[] = await donationsRes.json();
-        const donationUsage: DonationUsage[] = await usageRes.json();
+        if (usageRes && usageRes.ok) {
+          try {
+            const usageData = await usageRes.json();
+            donationUsage = Array.isArray(usageData) ? usageData : [];
+          } catch (jsonErr) {
+            console.warn('JSON parse error for usage:', jsonErr);
+          }
+        }
 
-        const totalDonated = donations.reduce((sum: number, donation: { amount: number }) => sum + donation.amount, 0);
-        const totalUsed = donationUsage.reduce((sum: number, usage: { amountSpent: number }) => sum + usage.amountSpent, 0);
-        const remainingBalance = totalDonated - totalUsed;
+        if (donations.length > 0 || donationUsage.length > 0) {
+          const totalDonated = donations.reduce((sum: number, donation: any) => sum + (donation.amount || 0), 0);
+          const totalUsed = donationUsage.reduce((sum: number, usage: any) => sum + (usage.amountSpent || 0), 0);
+          const remainingBalance = totalDonated - totalUsed;
 
-        setDonationData({ totalDonated, totalUsed, remainingBalance, donationUsage });
+          setDonationData({ totalDonated, totalUsed, remainingBalance, donationUsage });
+        }
+        // If API calls succeed but return empty, keep the initial mock data
       } catch (err) {
-        console.error("Failed to fetch donation data:", err);
-        setDonationData({
-          totalDonated: 0,
-          totalUsed: 0,
-          remainingBalance: 0,
-          donationUsage: []
-        });
+        console.error("API call failed, using fallback data:", err);
+        setApiError(true);
+        // Keep the initial mock data that was set when component mounts
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDonationData();
+    // Small delay to ensure initial mock data shows briefly for better UX
+    const timer = setTimeout(() => {
+      fetchDonationData();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Fetch events data
   useEffect(() => {
-    const fetchEvents = async (): Promise<void> => {
+    const fetchEvents = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/events`, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch events');
+        const response = await fetch(`${API_URL}/api/events`);
+        if (response.ok) {
+          const eventsData = await response.json();
+          setEvents(eventsData);
         }
-
-        const eventsData: TempleEvent[] = await response.json();
-        setEvents(eventsData);
       } catch (err) {
         console.error("Failed to fetch events:", err);
-        setEvents([]);
       }
     };
 
     fetchEvents();
   }, []);
 
-  const handleFeedbackChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
+  const [events, setEvents] = useState([]);
+
+  const [feedback, setFeedback] = useState({ name: "", email: "", message: "" });
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+
+  const handleFeedbackChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFeedback({ ...feedback, [e.target.name]: e.target.value });
   };
 
-  const handleFeedbackSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFeedbackStatus("");
+
+    if (!feedback.name.trim() || !feedback.email.trim() || !feedback.message.trim()) {
+      setFeedbackStatus("Please fill in all fields.");
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/feedback`, {
         method: "POST",
@@ -1040,90 +1046,24 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
       });
 
       if (response.ok) {
-        setFeedbackStatus("Feedback submitted successfully!");
+        setFeedbackStatus("Thank you! Your feedback has been submitted successfully.");
         setFeedback({ name: "", email: "", message: "" });
-        setTimeout(() => setFeedbackStatus(""), 3000);
-      } else {
-        const errorData = await response.json();
-        setFeedbackStatus(errorData.message || "Failed to submit feedback. Please try again.");
         setTimeout(() => setFeedbackStatus(""), 5000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setFeedbackStatus("Failed to submit feedback: " + (errorData.message || "Please try again."));
       }
     } catch (err) {
       console.error("Error submitting feedback:", err);
-      setFeedbackStatus("Failed to submit feedback. Please try again.");
-      setTimeout(() => setFeedbackStatus(""), 5000);
+      setFeedbackStatus("Failed to submit feedback. Please check your connection and try again.");
     }
   };
 
-  // Event Calendar Modal
-  const renderEventCalendar = (): JSX.Element | null => {
-    if (!showEventCalendar) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-orange-600">Temple Event Calendar</h2>
-            <button
-              onClick={toggleEventCalendar}
-              className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Close calendar"
-            >
-              ×
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-6">
-            {events.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-xl text-gray-500 mb-2">No events scheduled</p>
-                <p className="text-gray-400">Events added by the admin will appear here</p>
-              </div>
-            ) : (
-              events.map((event: TempleEvent, index: number) => (
-                <div key={index} className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border-l-4 border-orange-600 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Calendar className="h-4 w-4 text-orange-600" />
-                        <p className="text-sm font-medium text-orange-700">{event.date}</p>
-                      </div>
-                      <p className="text-gray-700 leading-relaxed">{event.description}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-orange-200">
-                    <p className="text-xs text-gray-500">
-                      Added on: {new Date(event.createdAt).toLocaleDateString('en-IN', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="mt-8 text-center">
-            <button
-              onClick={toggleEventCalendar}
-              className="rounded-xl bg-orange-600 px-9 py-2 text-base font-semibold text-white hover:bg-orange-700 transition-all duration-300"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <main className="bg-gradient-to-b from-orange-50 to-white">
-      {/* Hero Carousel Section */}
-      <div className="relative h-screen overflow-hidden">
-        {/* Carousel Images */}
-        <div className="relative h-full">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+      {/* Hero Carousel Section - Fixed height and overflow */}
+      <div className="relative overflow-hidden">
+        <div className="relative h-screen">
           {carouselImages.map((image, index) => (
             <div
               key={index}
@@ -1135,15 +1075,13 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                 className="w-full h-full object-cover"
                 src={image.src}
                 alt={image.alt}
-                loading={index === 0 ? 'eager' : 'lazy'}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
             </div>
           ))}
         </div>
 
-        {/* Navigation Arrows - Uncomment if needed */}
-        {/* 
+        {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
           className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-3 rounded-full transition-all duration-300 z-10"
@@ -1158,7 +1096,6 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
         >
           <ChevronRight className="h-6 w-6 text-white" />
         </button>
-        */}
 
         {/* Carousel Indicators - Thin lines */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 z-10">
@@ -1193,20 +1130,20 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
         {/* Overlay Content */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center text-white px-4 max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 fade-in">
               Shiva Temple
             </h1>
-            <p className="text-xl md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto animate-fade-in">
+            <p className="text-xl md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto fade-in">
               {carouselImages[currentSlide].title}
             </p>
-            <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto animate-fade-in">
+            <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto fade-in">
               Embrace divine serenity and spiritual bliss. Join our vibrant community in sacred worship and devotion.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
+      {/* Features Section - No margin top */}
       <div className="bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center">
@@ -1247,24 +1184,23 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
               <div
                 key={index}
                 onClick={feature.onClick}
-                className="relative bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300 cursor-pointer group"
-                role={feature.link ? "link" : "button"}
+                className="relative bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
               >
                 {feature.link ? (
-                  <a href={feature.link} className="block h-full">
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3 group-hover:bg-orange-200 transition-colors">
+                  <NavLink to={feature.link} className="block">
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3">
                       {feature.icon}
                     </div>
-                    <h3 className="mt-12 text-lg font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{feature.title}</h3>
-                    <p className="mt-2 text-gray-600 group-hover:text-gray-800 transition-colors">{feature.description}</p>
-                  </a>
+                    <h3 className="mt-12 text-lg font-semibold text-gray-900">{feature.title}</h3>
+                    <p className="mt-2 text-gray-600">{feature.description}</p>
+                  </NavLink>
                 ) : (
                   <>
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3 hover:bg-orange-200 transition-colors">
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 rounded-full bg-orange-100 p-3">
                       {feature.icon}
                     </div>
-                    <h3 className="mt-12 text-lg font-semibold text-gray-900 hover:text-orange-600 transition-colors">{feature.title}</h3>
-                    <p className="mt-2 text-gray-600 hover:text-gray-800 transition-colors">{feature.description}</p>
+                    <h3 className="mt-12 text-lg font-semibold text-gray-900">{feature.title}</h3>
+                    <p className="mt-2 text-gray-600">{feature.description}</p>
                   </>
                 )}
               </div>
@@ -1273,182 +1209,229 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
         </div>
       </div>
 
-      {/* Event Calendar Modal - Rendered here for Home-specific context */}
-      {renderEventCalendar()}
-
-      {/* Donation Summary Section */}
-      <div className="bg-gradient-to-r from-orange-100 to-yellow-100 py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900">Donation Impact</h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
-              Your contributions help sustain and enhance our temple's sacred mission.
-            </p>
-          </div>
-          <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
-              <IndianRupee className="h-10 w-10 text-green-600 mx-auto" />
-              <p className="mt-4 text-sm font-medium text-gray-600">Total Donated</p>
-              <p className="text-3xl font-bold text-green-700">
-                ₹{loading ? "0.00" : donationData.totalDonated.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              </p>
+      {/* Event Calendar Modal */}
+      {showEventCalendar && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-orange-600">Temple Event Calendar</h2>
+              <button
+                onClick={toggleEventCalendar}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+              >
+                ×
+              </button>
             </div>
-            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
-              <IndianRupee className="h-10 w-10 text-red-600 mx-auto" />
-              <p className="mt-4 text-sm font-medium text-gray-600">Total Used</p>
-              <p className="text-3xl font-bold text-red-700">
-                ₹{loading ? "0.00" : donationData.totalUsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
-              <IndianRupee className="h-10 w-10 text-blue-600 mx-auto" />
-              <p className="mt-4 text-sm font-medium text-gray-600">Remaining Balance</p>
-              <p className="text-3xl font-bold text-blue-700">
-                ₹{loading ? "0.00" : donationData.remainingBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
-          <div className="mt-12">
-            <h3 className="text-2xl font-semibold text-gray-900 text-center">How Your Donations Are Used</h3>
-            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {loading ? (
-                <div className="col-span-full text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading donation usage...</p>
+            <div className="grid grid-cols-1 gap-6">
+              {events.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-xl text-gray-500 mb-2">No events scheduled</p>
+                  <p className="text-gray-400">Events added by the admin will appear here</p>
                 </div>
-              ) : donationData.donationUsage.length === 0 ? (
-                <p className="text-center text-gray-600 col-span-full py-8">No donation usage records available.</p>
               ) : (
-                donationData.donationUsage.slice(0, 3).map((usage: DonationUsage, index: number) => (
-                  <div
-                    key={index}
-                    className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300"
-                  >
-                    <p className="text-lg font-semibold text-orange-600">{usage.purpose}</p>
-                    <p className="mt-2 text-gray-600 font-medium">₹{usage.amountSpent.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-                    <p className="mt-2 text-sm text-gray-500 leading-relaxed">{usage.description}</p>
-                    <p className="mt-2 text-sm text-gray-400">Date: {new Date(usage.date).toLocaleDateString('en-IN')}</p>
+                events.map((event: any, index) => (
+                  <div key={index} className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border-l-4 border-orange-600 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="h-4 w-4 text-orange-600" />
+                          <p className="text-sm font-medium text-orange-700">{event.date}</p>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">{event.description}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-orange-200">
+                      <p className="text-xs text-gray-500">
+                        Added on: {new Date(event.createdAt).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
             </div>
             <div className="mt-8 text-center">
-              <a
-                href="/donations"
-                className="inline-flex items-center rounded-xl bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                aria-label="Contribute to temple donations"
+              <button
+                onClick={toggleEventCalendar}
+                className="rounded-xl bg-orange-600 px-9 py-2 text-base font-semibold text-white hover:bg-orange-700 transition-all duration-300"
               >
-                <IndianRupee className="h-5 w-5 mr-2" />
-                Contribute Now
-              </a>
+                Close
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Community Information Section */}
-      <div className="bg-gray-50 py-24">
+      {/* Donation Summary Section - Fixed positioning and spacing */}
+      <section className="bg-gradient-to-r from-orange-100 to-yellow-100 py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900">Our Spiritual Community</h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-6">Donation Impact</h2>
+            <p className="text-xl text-gray-600 mb-16">
+              Your contributions help sustain and enhance our temple's sacred mission.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 mb-16">
+            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
+              <IndianRupee className="h-10 w-10 text-green-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-gray-600 mb-2">Total Donated</p>
+              <p className="text-3xl font-bold text-green-700 mb-1">
+                ₹{donationData.totalDonated.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
+              <IndianRupee className="h-10 w-10 text-red-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-gray-600 mb-2">Total Used</p>
+              <p className="text-3xl font-bold text-red-700 mb-1">
+                ₹{donationData.totalUsed.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
+              <IndianRupee className="h-10 w-10 text-blue-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-gray-600 mb-2">Remaining Balance</p>
+              <p className="text-3xl font-bold text-blue-700 mb-1">
+                ₹{donationData.remainingBalance.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          
+          {/* Donation Usage - Always visible */}
+          <div className="mb-16">
+            <h3 className="text-2xl font-semibold text-gray-900 text-center mb-8">How Your Donations Are Used</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {donationData.donationUsage.slice(0, 3).map((usage, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="text-lg font-semibold text-orange-600">{usage.purpose}</p>
+                      <p className="mt-1 text-sm text-gray-600">{usage.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-orange-600">
+                        ₹{usage.amountSpent.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">{usage.description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 text-center">
+              <NavLink
+                to="/donations"
+                className="inline-flex items-center rounded-xl bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-orange-700 transition-all duration-300"
+              >
+                Contribute Now
+              </NavLink>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Community Information Section */}
+      <section className="bg-gray-50 py-24">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-6">Our Spiritual Community</h2>
+            <p className="text-xl text-gray-600 mb-16">
               Join a vibrant community dedicated to spiritual growth and service.
             </p>
           </div>
-          <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 mb-16">
             <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-orange-600 mb-3">Weekly Satsangs</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <h3 className="text-lg font-semibold text-orange-600 mb-2">Weekly Satsangs</h3>
+              <p className="text-gray-600">
                 Participate in our weekly gatherings for bhajans, discourses, and meditation every Sunday at 6 PM.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-orange-600 mb-3">Volunteer Opportunities</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <h3 className="text-lg font-semibold text-orange-600 mb-2">Volunteer Opportunities</h3>
+              <p className="text-gray-600">
                 Contribute your time and skills to temple activities, from event planning to community outreach.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-orange-600 mb-3">Youth Programs</h3>
-              <p className="text-gray-600 leading-relaxed">
+              <h3 className="text-lg font-semibold text-orange-600 mb-2">Youth Programs</h3>
+              <p className="text-gray-600">
                 Engage young minds with our cultural and spiritual classes held every Saturday for children and teens.
               </p>
             </div>
           </div>
-          <div className="mt-8 text-center">
-            <a
-              href="/community"
-              className="inline-flex items-center rounded-xl bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              aria-label="Join our spiritual community"
+          <div className="text-center">
+            <NavLink
+              to="/community"
+              className="inline-flex items-center rounded-xl bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-lg hover:bg-orange-700 transition-all duration-300"
             >
-              <Users className="h-5 w-5 mr-2" />
               Join Our Community
-            </a>
+            </NavLink>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Latest Updates Section */}
-      <div className="bg-white py-24">
+      <section className="bg-white py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900">Latest Temple Updates</h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-6">Latest Temple Updates</h2>
+            <p className="text-xl text-gray-600 mb-16">
               Stay connected with the latest happenings at Shiva Temple.
             </p>
           </div>
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 title: "Temple Renovation",
                 description: "Support our ongoing temple renovation project with your generous donations. Help us preserve our sacred heritage.",
                 date: "Ongoing",
-                icon: "🏗️"
               },
               {
-                title: "Diwali Celebration",
-                description: "Celebrate the Festival of Lights with us. Special abhishekams, poojas, and prasadam distribution for all devotees.",
-                date: "October 2025",
-                icon: "🪔"
+                title: "Makara Sankranti Celebrations",
+                description: "Celebrate the harvest festival with special poojas, and distribution of traditional prasadam. Devotees can participate in early morning ceremonies and cultural activities.",
+                date: "January 2026",
               },
               {
-                title: "Karthika Deepotsavam",
-                description: "Join us for the grand Karthika Deepotsavam celebration. Special poojas and rituals will be conducted throughout the month.",
-                date: "November 2025",
-                icon: "🪔"
-              },
+                title: "Maha Shivaratri",
+                description: "Observe the sacred night of Lord Shiva with Rudrabhishekam, and devotional bhajans. Special darshan arrangements and fasting rituals will be facilitated for devotees.",
+                date: "March 2026",
+              }
+
             ].map((update, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border border-orange-100 group"
+                className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300 border border-orange-100"
               >
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="text-2xl group-hover:scale-110 transition-transform">{update.icon}</span>
-                  <h3 className="text-lg font-semibold text-orange-600 flex-1">{update.title}</h3>
-                </div>
-                <p className="text-gray-600 leading-relaxed mb-4">{update.description}</p>
-                <p className="text-sm text-gray-400 font-medium">{update.date}</p>
+                <h3 className="text-lg font-semibold text-orange-600 mb-2">{update.title}</h3>
+                <p className="text-gray-600 mb-4">{update.description}</p>
+                <p className="text-sm text-gray-400">{update.date}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Connect With Us Section */}
-      <div id="connect-section" className="bg-gradient-to-r from-orange-50 to-yellow-50 py-24">
+      <section id="connect-section" className="bg-gradient-to-r from-orange-50 to-yellow-50 py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-extrabold text-gray-900 bg-clip-text bg-gradient-to-r from-orange-600 to-yellow-500">
               Connect With Us
             </h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600">
+            <p className="text-xl text-gray-600 mb-16">
               We're here to guide you on your spiritual journey. Reach out to us for inquiries, blessings, or to share your thoughts.
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
             {/* Contact Information */}
-            <div className="bg-white rounded-2xl p-8 shadow-xl">
+            <div className="rounded-2xl p-8 ">
               <h3 className="text-2xl font-semibold text-gray-900 mb-8">Get In Touch</h3>
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
@@ -1483,8 +1466,7 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                       href="https://instagram.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      aria-label="Follow us on Instagram"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
                     >
                       <Instagram className="h-5 w-5" />
                     </a>
@@ -1492,8 +1474,7 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                       href="https://youtube.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      aria-label="Subscribe to our YouTube channel"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
                     >
                       <Youtube className="h-5 w-5" />
                     </a>
@@ -1501,8 +1482,7 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                       href="https://facebook.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      aria-label="Like us on Facebook"
+                      className="bg-orange-100 p-3 rounded-full text-orange-600 hover:bg-orange-200 transition-colors duration-300"
                     >
                       <Facebook className="h-5 w-5" />
                     </a>
@@ -1514,7 +1494,7 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
             {/* Feedback Form */}
             <div className="bg-white rounded-2xl p-8 shadow-xl">
               <h3 className="text-2xl font-semibold text-gray-900 mb-6">Share Your Feedback</h3>
-              <form onSubmit={handleFeedbackSubmit} className="space-y-6" noValidate>
+              <form onSubmit={handleFeedbackSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Your Name *
@@ -1525,10 +1505,9 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                     id="name"
                     value={feedback.name}
                     onChange={handleFeedbackChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
                     placeholder="Enter your full name"
                     required
-                    aria-required="true"
                   />
                 </div>
                 <div>
@@ -1541,10 +1520,9 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                     id="email"
                     value={feedback.email}
                     onChange={handleFeedbackChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
                     placeholder="Enter your email address"
                     required
-                    aria-required="true"
                   />
                 </div>
                 <div>
@@ -1557,24 +1535,22 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
                     rows={5}
                     value={feedback.message}
                     onChange={handleFeedbackChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300 focus:outline-none resize-vertical"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 transition-colors duration-300"
                     placeholder="Share your thoughts, feedback, or inquiries..."
                     required
-                    aria-required="true"
                   />
                 </div>
                 <div>
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={feedbackStatus.includes("submitting")}
+                    className="w-full rounded-xl bg-gradient-to-r from-orange-600 to-yellow-500 px-6 py-3 text-base font-semibold text-white shadow-lg hover:from-orange-700 hover:to-yellow-600 transition-all duration-300"
                   >
                     Send Message
                   </button>
                 </div>
                 {feedbackStatus && (
                   <div className={`text-center p-3 rounded-lg ${
-                    feedbackStatus.includes("successfully")
+                    feedbackStatus.includes("Thank you") || feedbackStatus.includes("success")
                       ? "bg-green-100 text-green-700 border border-green-200"
                       : "bg-red-100 text-red-700 border border-red-200"
                   }`}>
@@ -1585,24 +1561,27 @@ export function Home({ showEventCalendar, toggleEventCalendar }: HomeProps) {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Custom CSS for animations */}
-      <style jsx>{`
+      {/* Footer - Integrated directly */}
+      <footer className="bg-gradient-to-r from-orange-700 to-yellow-600 py-10">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8 text-center text-white">
+          <p className="text-base lg:text-lg">
+            © 2025 Shiva Temple. All Rights Reserved.
+          </p>
+        </div>
+      </footer>
+
+      {/* Global Styles */}
+      <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in {
-          animation: fadeIn 0.6s ease-out;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
+        .fade-in {
+          animation: fadeIn 1s ease-out;
         }
       `}</style>
-    </main>
+    </div>
   );
 }
